@@ -27,7 +27,7 @@ import {
   type SessionView,
   type UserStats,
 } from "@aerofocus/core";
-import { AIRCRAFT_BY_CODE, AIRPORTS_BY_IATA, buildAirlineTierTable } from "@aerofocus/data";
+import { AIRCRAFT_BY_CODE, AIRPORTS_BY_IATA, buildAirlineTierTable, seatMapFor } from "@aerofocus/data";
 
 /** Minimal Web Storage interface (localStorage in browsers). */
 export interface StorageLike {
@@ -176,7 +176,7 @@ export class GuestStore {
       booking: state.booking.times,
       snapshotId: state.booking.snapshot.id,
       cabin: state.booking.cabin,
-      seat: assignSeat(state.booking.times.mode, family, state.booking.cabin, this.random),
+      seat: assignSeat(state.booking.times.mode, seatMapFor(state.booking.snapshot.aircraftType, family), state.booking.cabin, this.random),
       breakSchedule: state.booking.breakSchedule,
       studyGoal: state.booking.studyGoal,
       isPublic: false,

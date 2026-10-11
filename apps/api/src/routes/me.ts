@@ -1,6 +1,9 @@
 import {
   ACHIEVEMENTS,
+  buildGreatCircleRoute,
   buildTravelMark,
+  localDate,
+  splitAtAntimeridian,
   computeStats,
   isValidPassportColour,
   validateGuestImport,
@@ -139,6 +142,80 @@ export function meRoutes(deps: AppDeps) {
     });
   });
 
+  /**
+   * Personal globe (FR-053): every completed leg as its own route line, visited airports with visit
+   * counts, and countries. Filters: airline, country (ISO alpha-2 of destination), from/to (epoch ms).
+   * Positions are great-circle estimates; distances are virtual, not physical travel (FR-054).
+   */
+  app.get("/globe", async (c) => {
+    const user = requireUser(c.get("user"));
+    const q = parseQuery(
+      c,
+      z.object({
+        airline: z.string().max(3).optional(),
+        country: z.string().length(2).optional(),
+        from: z.coerce.number().optional(),
+        to: z.coerce.number().optional(),
+      }),
+    );
+    const settings = await getSettings(deps, user.id);
+    await finalizeOpenSessions(deps, user.id, settings.timeZone, deps.clock.now());
+    const sessions = await deps.db
+      .select({ session: flightSessions, snapshot: scheduleSnapshots.data })
+      .from(flightSessions)
+      .innerJoin(bookings, eq(bookings.id, flightSessions.bookingId))
+      .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, bookings.snapshotId))
+      .where(eq(flightSessions.userId, user.id));
+    const imported = await deps.db
+      .select({ row: importedFlights, snapshot: scheduleSnapshots.data })
+      .from(importedFlights)
+      .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, importedFlights.snapshotId))
+      .where(eq(importedFlights.userId, user.id));
+    const legs = [
+      ...sessions.filter((r) => r.session.outcome === "complete").map((r) => ({ id: r.session.id, snapshot: r.snapshot, departure: r.session.departure, arrival: r.session.arrival })),
+      ...imported.filter((r) => r.row.outcome === "complete").map((r) => ({ id: r.row.id, snapshot: r.snapshot, departure: r.row.departure, arrival: r.row.arrival })),
+    ]
+      .filter((l) => !q.airline || l.snapshot.operatingAirline === q.airline)
+      .filter((l) => !q.country || AIRPORTS_BY_IATA.get(l.snapshot.destination)?.country === q.country)
+      .filter((l) => (q.from === undefined || l.departure >= q.from) && (q.to === undefined || l.departure <= q.to))
+      .sort((a, b) => a.departure - b.departure);
+
+    const visits = new Map<string, number>();
+    const features: unknown[] = legs.map((l) => {
+      const origin = AIRPORTS_BY_IATA.get(l.snapshot.origin)!;
+      const destination = AIRPORTS_BY_IATA.get(l.snapshot.destination)!;
+      visits.set(origin.iata, (visits.get(origin.iata) ?? 0) + 1);
+      visits.set(destination.iata, (visits.get(destination.iata) ?? 0) + 1);
+      return {
+        type: "Feature",
+        geometry: { type: "MultiLineString", coordinates: splitAtAntimeridian(buildGreatCircleRoute(origin, destination, 48).points) },
+        properties: {
+          kind: "leg",
+          legId: l.id,
+          flightNumber: `${l.snapshot.operatingAirline}${l.snapshot.flightNumber}`,
+          airline: l.snapshot.operatingAirline,
+          origin: origin.iata,
+          destination: destination.iata,
+          destinationCountry: destination.country,
+          departure: l.departure,
+          arrivalDate: localDate(l.arrival, settings.timeZone),
+          blockMs: l.arrival - l.departure,
+          estimated: true,
+        },
+      };
+    });
+    for (const [iata, count] of visits) {
+      const a = AIRPORTS_BY_IATA.get(iata)!;
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [a.lon, a.lat] },
+        properties: { kind: "airport", iata, name: a.name, city: a.city, country: a.country, visits: count },
+      });
+    }
+    const countries = [...new Set(legs.map((l) => AIRPORTS_BY_IATA.get(l.snapshot.destination)?.country).filter(Boolean))];
+    return c.json({ type: "FeatureCollection", features, countries, legCount: legs.length });
+  });
+
   app.get("/passport", async (c) => {
     const user = requireUser(c.get("user"));
     const settings = await getSettings(deps, user.id);
@@ -162,8 +239,8 @@ export function meRoutes(deps: AppDeps) {
     const earned = await deps.db.select().from(achievements).where(eq(achievements.userId, user.id));
     const earnedAt = new Map(earned.map((e) => [e.achievementId, e.earnedAt]));
     return c.json({
-      achievements: ACHIEVEMENTS.map(({ id, name, description, special }) => ({
-        id, name, description, special, earnedAt: earnedAt.get(id) ?? null,
+      achievements: ACHIEVEMENTS.map(({ id, name, description, category, special }) => ({
+        id, name, description, category, special, earnedAt: earnedAt.get(id) ?? null,
       })),
     });
   });

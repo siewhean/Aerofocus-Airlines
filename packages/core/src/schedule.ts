@@ -37,7 +37,7 @@ export interface Airline {
   rankSource: DataSourceStatus;
 }
 
-export type AircraftFamily = "narrowbody" | "widebody_twin" | "widebody_quad";
+export type AircraftFamily = "regional" | "narrowbody" | "widebody_twin" | "widebody_quad";
 
 export interface AircraftType {
   code: string;

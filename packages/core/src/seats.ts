@@ -2,17 +2,29 @@ import type { DepartureMode } from "./booking";
 import type { Rng } from "./random";
 import type { AircraftFamily, CabinClass } from "./schedule";
 
-interface CabinLayout {
+export interface CabinLayout {
   rows: [number, number];
+  /** Seat letters left to right; the first is the left window. */
   letters: string[];
   windowLetters: [string, string];
 }
 
-interface GenericLayout {
+/**
+ * generic: per aircraft family. representative: per aircraft type, typical layout, not tied to any
+ * airline. verified: an airline's documented configuration (requires sourcing, FR-010).
+ */
+export type SeatMapSource = "generic" | "representative" | "verified";
+
+export interface SeatMap {
+  id: string;
+  name: string;
+  source: SeatMapSource;
   cabins: Partial<Record<CabinClass, CabinLayout>>;
   /** Rows from which the wing is visible. */
   wingRows: [number, number];
 }
+
+type GenericLayout = Omit<SeatMap, "id" | "name" | "source">;
 
 /**
  * Generic seat layouts per aircraft family, used until aircraft-specific seat maps exist (FR-010).
@@ -46,6 +58,13 @@ export const GENERIC_LAYOUTS: Readonly<Record<AircraftFamily, GenericLayout>> = 
     },
     wingRows: [50, 62],
   },
+  regional: {
+    cabins: {
+      business: { rows: [1, 3], letters: ["A", "C", "D"], windowLetters: ["A", "D"] },
+      economy: { rows: [4, 25], letters: ["A", "C", "D", "F"], windowLetters: ["A", "F"] },
+    },
+    wingRows: [8, 13],
+  },
 };
 
 export interface SeatAssignment {
@@ -55,8 +74,12 @@ export interface SeatAssignment {
   isWindow: boolean;
   /** Whether the window view renders the wing. */
   wingView: boolean;
-  /** Generic layouts are presentation only. */
-  layout: "generic";
+  /** How authentic the layout is; only "verified" may be presented as an airline's real cabin. */
+  layout: SeatMapSource;
+}
+
+export function genericSeatMap(family: AircraftFamily): SeatMap {
+  return { id: `generic-${family}`, name: `Generic ${family.replace("_", " ")}`, source: "generic", ...GENERIC_LAYOUTS[family] };
 }
 
 const randInt = (min: number, max: number, rng: Rng): number => min + Math.floor(rng() * (max - min + 1));
@@ -66,10 +89,10 @@ const randInt = (min: number, max: number, rng: Rng): number => min + Math.floor
  * Individual flights: always a window seat with a wing view, in every cabin, even where the real
  * cabin has no wing-view window. Community Flights: anywhere in the booked cabin.
  */
-export function assignSeat(mode: DepartureMode, family: AircraftFamily, cabin: CabinClass, rng: Rng): SeatAssignment {
-  const layout = GENERIC_LAYOUTS[family];
+export function assignSeat(mode: DepartureMode, map: AircraftFamily | SeatMap, cabin: CabinClass, rng: Rng): SeatAssignment {
+  const layout = typeof map === "string" ? genericSeatMap(map) : map;
   const cabinLayout = layout.cabins[cabin] ?? layout.cabins.economy;
-  if (!cabinLayout) throw new RangeError(`No layout for ${family}`);
+  if (!cabinLayout) throw new RangeError(`No layout for ${layout.id}`);
   const [firstRow, lastRow] = cabinLayout.rows;
   const [wingFirst, wingLast] = layout.wingRows;
 
@@ -83,7 +106,7 @@ export function assignSeat(mode: DepartureMode, family: AircraftFamily, cabin: C
           ? lastRow // cabin is ahead of the wing: closest row to it
           : firstRow; // cabin is behind the wing
     const letter = cabinLayout.windowLetters[rng() < 0.5 ? 0 : 1];
-    return { seat: `${row}${letter}`, row, letter, isWindow: true, wingView: true, layout: "generic" };
+    return { seat: `${row}${letter}`, row, letter, isWindow: true, wingView: true, layout: layout.source };
   }
 
   const row = randInt(firstRow, lastRow, rng);
@@ -95,6 +118,6 @@ export function assignSeat(mode: DepartureMode, family: AircraftFamily, cabin: C
     letter,
     isWindow,
     wingView: isWindow && row >= wingFirst && row <= wingLast,
-    layout: "generic",
+    layout: layout.source,
   };
 }

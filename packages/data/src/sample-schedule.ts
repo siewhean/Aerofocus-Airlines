@@ -71,4 +71,12 @@ export const SAMPLE_PATTERNS: readonly WeeklyPattern[] = [
   { airline: "BA", flightNumber: "283", origin: "LHR", destination: "LAX", departureLocal: "10:00", blockMinutes: 670, days: DAILY, aircraft: "789", cabins: EPBF },
   { airline: "CX", flightNumber: "251", origin: "HKG", destination: "LHR", departureLocal: "23:30", blockMinutes: 800, days: DAILY, aircraft: "351", cabins: EPB },
   { airline: "TR", flightNumber: "12", origin: "SIN", destination: "SYD", departureLocal: "21:00", blockMinutes: 480, days: [1, 3, 5], aircraft: "789", cabins: E },
+  { airline: "QF", flightNumber: "12", origin: "LAX", destination: "SYD", departureLocal: "23:00", blockMinutes: 900, days: DAILY, aircraft: "789", cabins: EPBF },
+  { airline: "CX", flightNumber: "880", origin: "HKG", destination: "LAX", departureLocal: "11:00", blockMinutes: 760, days: DAILY, aircraft: "77W", cabins: EPBF },
+  // Additional aircraft types (Phase 2 catalogue)
+  { airline: "KL", flightNumber: "1007", origin: "AMS", destination: "LHR", departureLocal: "14:00", blockMinutes: 70, days: DAILY, aircraft: "E90", cabins: EB },
+  { airline: "AF", flightNumber: "1680", origin: "CDG", destination: "AMS", departureLocal: "10:30", blockMinutes: 80, days: DAILY, aircraft: "223", cabins: EB },
+  { airline: "VN", flightNumber: "1", origin: "SGN", destination: "HND", departureLocal: "23:50", blockMinutes: 360, days: DAILY, aircraft: "78X", cabins: EPB },
+  { airline: "KE", flightNumber: "17", origin: "ICN", destination: "LAX", departureLocal: "14:30", blockMinutes: 670, days: DAILY, aircraft: "748", cabins: EBF },
+  { airline: "MH", flightNumber: "1", origin: "KUL", destination: "LHR", departureLocal: "23:30", blockMinutes: 805, days: [2, 4, 6, 7], aircraft: "339", cabins: EB },
 ];

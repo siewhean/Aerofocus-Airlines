@@ -46,6 +46,7 @@ small "sample schedule" label: the times are not published airline schedules (FR
 | GET | `/v1/airports` | supported airports |
 | GET | `/v1/airlines` | airlines with unlock `tier` (0 = budget/starter … 6 = highest-ranked) |
 | GET | `/v1/aircraft` | aircraft types and families |
+| GET | `/v1/aircraft/:code/seatmap` | seat map for a type (`source: "representative"` = typical layout, not an airline's) |
 | GET | `/v1/levels` | progression levels and requirements |
 | GET | `/v1/achievements` | achievement catalogue |
 
@@ -82,8 +83,9 @@ random, including locked airlines and (rarely) Business or First (FR-005). Book 
 
 ### Flight plan and preview inspection 🔓
 
-- `GET /v1/flights/:snapshotId/plan?departure=` → `{ snapshot, plan }`: route points, phase plan.
-- `GET /v1/flights/:snapshotId/inspect?departure=&offsetMs=|fraction=` → `{ point }`.
+- `GET /v1/flights/:snapshotId/plan?departure=` → `{ snapshot, plan, geometry, timeline,
+  daylightEvents, facts, seatMap }` (see "Route rendering" below).
+- `GET /v1/flights/:snapshotId/inspect?departure=&offsetMs=|fraction=` → `{ point }` with `placeLabel`.
 
 ### Book — `POST /v1/bookings`
 
@@ -139,8 +141,9 @@ isPublic, studyGoal, goalCompleted
 | POST | `/v1/sessions/:id/exit` | leave early (FR-014) |
 | POST | `/v1/sessions/:id/validate` | `{ confirmUnattendedStarts?: number[], goalCompleted?: boolean }` (FR-015) |
 | PATCH | `/v1/sessions/:id/visibility` | `{ isPublic }`, individual flights only (FR-058) |
-| GET | `/v1/sessions/:id/route` | route points and phase plan for the map |
-| GET | `/v1/sessions/:id/inspect` | `?offsetMs=` or `?fraction=` (slider/keyboard) or `?lat=&lon=` (tap/click) (FR-017) |
+| GET | `/v1/sessions/:id/route` | `{ plan, geometry, timeline, daylightEvents }` for the map |
+| GET | `/v1/sessions/:id/scenery` | what the window shows now (see "Scenery and lighting") |
+| GET | `/v1/sessions/:id/inspect` | `?offsetMs=` or `?fraction=` (slider/keyboard) or `?lat=&lon=` (tap/click) (FR-017); includes `placeLabel` |
 
 ### How the UI should drive a flight
 
@@ -159,7 +162,49 @@ isPublic, studyGoal, goalCompleted
    or `ended_early` (only focus up to the last break counts).
 5. Inspecting the route never changes the live flight (FR-019). Inspection times are in the user's
    time zone, and positions are always estimates: label them as simulated.
-6. Window lighting: use `flight.daylight` (sun at the aircraft's position, now) (FR-023).
+6. Window lighting: use `/scenery` (or `flight.daylight` for a cheap check) (FR-023).
+
+## Route rendering (Phase 2)
+
+`geometry` is a GeoJSON FeatureCollection. Every feature has `properties.kind`:
+
+| kind | geometry | notes |
+|---|---|---|
+| `completed` / `remaining` | MultiLineString | split at the current position |
+| `phase` | MultiLineString | one per airborne phase, `properties.phase` = climb, cruise, descent, approach |
+| `origin` / `destination` | Point | `properties.iata` |
+| `aircraft` | Point | `properties.headingDeg`, `properties.phase` (sessions only) |
+
+Lines are already split at the antimeridian, so they can go straight into MapLibre or a globe.
+All positions are estimates (`estimated: true`); label them as simulated (FR-018).
+
+`timeline` is the text alternative to the map for screen readers and keyboard users (NFR-003):
+one entry per phase change and every 30 minutes, each with `localTime` (user's time zone),
+`phase`, `placeLabel` ("Near Singapore", "Over India", "Off the coast of India", "Over the
+ocean") and `progressPercent`. Render it as a list or table next to the map.
+
+`daylightEvents` lists the sunrises and sunsets the aircraft passes through, with display times.
+`facts` (flight previews) says whether the route crosses the equator or the antimeridian, flies
+through a sunrise, or spends 3+ hours in darkness.
+
+## Scenery and lighting (Phase 2)
+
+`GET /v1/sessions/:id/scenery` returns:
+
+```text
+scenery: surface (ocean | land | coast), country, placeLabel, nearAirport, altitudeBand
+         (ground | low | cruise), daylight {elevationDeg, azimuthDeg, condition},
+         clouds {coverage 0..1, layer: clear | scattered | broken | overcast}, simulated: true
+window:  condition, sunElevationDeg, sunAzimuthDeg, headingDeg, sunRelativeBearingDeg,
+         sunSide (ahead | behind | left | right | below_horizon), sunOnWindowSide,
+         exteriorBrightness 0..1
+seat, phase, altitudeFt
+```
+
+Poll it every minute or two; it changes slowly. Clouds are deterministic per flight, so every
+passenger on a Community Flight sees the same sky. They are decorative, **not real weather**.
+`exteriorBrightness` drives the outside view only; the user's reading light and cabin brightness
+settings stay separate (FR-024). Offer a low-power mode that skips rendering scenery (FR-026).
 
 ## Progress, passport, history
 
@@ -169,7 +214,8 @@ isPublic, studyGoal, goalCompleted
 | GET | `/v1/me/stats` | focus hours, simulated flying hours, flights, airports, countries, virtual distance, completion rate, focus-to-break ratio, longest flight, streak, airline/aircraft usage |
 | GET | `/v1/me/history?limit=` | flight log with status `complete` / `invalid` / `ended_early` / `in_flight` |
 | GET | `/v1/me/passport` | `{ cover, marks[], countries[{country, visits}], airports[] }` |
-| GET | `/v1/me/achievements` | catalogue with `earnedAt` |
+| GET | `/v1/me/achievements` | catalogue with `category` and `earnedAt` |
+| GET | `/v1/me/globe` | GeoJSON of completed legs (`kind: "leg"`) and visited airports (`kind: "airport"`, `visits`), plus `countries`. Filters: `airline`, `country` (ISO alpha-2), `from`, `to` (FR-053) |
 
 Travel marks are virtual; never style them to look like official immigration endorsements (FR-048).
 Simulated distance and flying hours are not physical travel (FR-054).
@@ -179,13 +225,27 @@ Simulated distance and flying hours are not physical travel (FR-054).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/v1/community/flights` | `{ flights: PublicFlightDescriptor[], serverTime }` |
+| GET | `/v1/community/flights?zoom=&bbox=west,south,east,north` | clustered: `{ items, total, serverTime }`; each item is `{ type: "flight", position, flight }` or `{ type: "cluster", position, count, sampleIds }` (FR-062) |
+| GET | `/v1/community/flights/public/:id` | anonymous inspection: descriptor, position and route path only (FR-056) |
 | GET | `/v1/community/flights/:key` | passenger count for one Community Flight |
-| POST | `/v1/community/presence` | guests: `{ communityKey, presenceId (uuid), leaving? }` every minute |
+| POST | `/v1/community/presence` | guests: `{ communityKey, presenceId (uuid), leaving? }` every minute → `{ passengerCount, counted }` |
 
 A descriptor contains only `id`, `kind` (`individual` | `community`), `origin`, `destination`,
 `departure`, `blockMs` and, for Community Flights, `passengerCount`. Compute positions in the
 browser with `publicFlightPosition(descriptor, now)`; the server does not stream positions. Hiding
 other flights is a UI setting (`showCommunityFlights`); it must not affect the user's own flight.
+
+Guest presence ids are unauthenticated, so each client may have at most 3 ids counted per
+Community Flight, with caps of 5,000 ids per flight and 100,000 overall. Capacity never returns an
+error: the response is always 200, and `counted: false` means this id is not being counted (it is
+also `false` after `leaving`). Ids already counted keep refreshing; ids expire after 5 minutes
+without a ping, freeing the client's slots. Clients are identified by the socket IP address. With
+`TRUST_PROXY=true` they are identified by the `X-Forwarded-For` entry `TRUST_PROXY_HOPS` (default 1)
+positions from the right, i.e. the address appended by our own proxy; entries further left are
+client-controlled and ignored. Enable `TRUST_PROXY` only behind a reverse proxy that appends the
+real client address, otherwise clients can choose their own identity. Addresses are normalised
+(ports, brackets, case, IPv4-mapped IPv6), and IPv6 clients are limited per /64 prefix, so all
+addresses in one /64 share the 3 ids.
 
 ## Guest mode
 

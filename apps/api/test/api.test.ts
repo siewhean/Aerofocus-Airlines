@@ -238,6 +238,8 @@ describe("Community Flights", () => {
       body: { communityKey: map[0].id, presenceId: "6f1c1a52-6d2c-4a0e-9a59-2f1f7a1b2c3d" },
     });
     expect(presence.status).toBe(200);
+    // Guest presence does not invalidate the cache; the count updates when the 3 s cache expires.
+    env.clock.t += 3_000;
     expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(3);
   });
 });

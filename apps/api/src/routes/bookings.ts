@@ -12,7 +12,7 @@ import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireUser, type AppEnv } from "../auth";
-import type { AppDeps } from "../context";
+import { invalidateCommunityCache, type AppDeps } from "../context";
 import { attendanceSignals, bookings, flightSessions } from "../db/schema";
 import { ApiError, notFound, parseJson } from "../errors";
 import {
@@ -27,7 +27,7 @@ import {
 } from "../services/catalogue";
 import { markNoShows, progressionFor, type BookingRow } from "../services/sessions";
 import { getSettings } from "../services/users";
-import { AIRLINES_BY_IATA } from "@aerofocus/data";
+import { AIRLINES_BY_IATA, seatMapFor } from "@aerofocus/data";
 import { breakScheduleSchema, cabinSchema } from "./common";
 
 const bookingSchema = z.object({
@@ -150,7 +150,7 @@ export function bookingRoutes(deps: AppDeps) {
         snapshotId: snapshot.id,
         mode,
         cabin: body.cabin,
-        seat: assignSeat(mode, aircraft.family, body.cabin, deps.random),
+        seat: assignSeat(mode, seatMapFor(snapshot.aircraftType, aircraft.family), body.cabin, deps.random),
         plannedDeparture: planned.departure,
         plannedArrival: planned.arrival,
         studyWindowStart: body.studyWindow?.start ?? null,
@@ -243,6 +243,7 @@ export function bookingRoutes(deps: AppDeps) {
       await tx.insert(attendanceSignals).values(s.signals.map((sig) => ({ sessionId: row!.id, kind: sig.kind, at: sig.at })));
       return row!.id;
     });
+    invalidateCommunityCache(deps);
     return c.json({ sessionId }, 201);
   });
 

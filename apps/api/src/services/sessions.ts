@@ -3,11 +3,13 @@ import {
   boardingDecision,
   buildTravelMark,
   computeStats,
+  createFlightPlan,
   earnedAchievements,
   greatCircleDistanceKm,
   levelFor,
   nextLevelProgress,
   planForSession,
+  routeFacts,
   sessionView,
   summarize,
   unlockStateFor,
@@ -187,7 +189,7 @@ export async function markNoShows(deps: AppDeps, userId: string, now: Instant): 
 
 export async function userRecords(deps: AppDeps, userId: string): Promise<FlightRecord[]> {
   const sessions = await deps.db
-    .select({ row: flightSessions, snapshot: scheduleSnapshots.data })
+    .select({ row: flightSessions, snapshot: scheduleSnapshots.data, mode: bookings.mode })
     .from(flightSessions)
     .innerJoin(bookings, eq(bookings.id, flightSessions.bookingId))
     .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, bookings.snapshotId))
@@ -215,11 +217,18 @@ export async function userRecords(deps: AppDeps, userId: string): Promise<Flight
       distanceKm: greatCircleDistanceKm(origin, destination),
     };
   };
+  /** Route facts for achievements, only needed for completed flights. */
+  const facts = (s: ScheduleSnapshot, departure: number, arrival: number) =>
+    routeFacts(
+      createFlightPlan({ origin: airportOrThrow(s.origin), destination: airportOrThrow(s.destination), departure, blockMs: arrival - departure }),
+    );
   const records: FlightRecord[] = [];
-  for (const { row, snapshot } of sessions) {
+  for (const { row, snapshot, mode } of sessions) {
     if (row.outcome === null || !FINAL_OUTCOMES.has(row.outcome)) continue;
     records.push({
       ...base(snapshot),
+      mode,
+      ...(row.outcome === "complete" ? { facts: facts(snapshot, row.departure, row.arrival) } : {}),
       outcome: row.outcome as FlightRecord["outcome"],
       departure: row.departure,
       arrival: row.arrival,
@@ -232,6 +241,7 @@ export async function userRecords(deps: AppDeps, userId: string): Promise<Flight
   for (const { row, snapshot } of imported) {
     records.push({
       ...base(snapshot),
+      ...(row.outcome === "complete" ? { facts: facts(snapshot, row.departure, row.arrival) } : {}),
       outcome: row.outcome as FlightRecord["outcome"],
       departure: row.departure,
       arrival: row.arrival,
@@ -258,7 +268,7 @@ export async function userRecords(deps: AppDeps, userId: string): Promise<Flight
 
 export async function refreshAchievements(deps: AppDeps, userId: string, userTimeZone: string, now: Instant): Promise<void> {
   const records = await userRecords(deps, userId);
-  const earned = earnedAchievements(computeStats(records, now, userTimeZone), records);
+  const earned = earnedAchievements(computeStats(records, now, userTimeZone), records, now);
   if (earned.length === 0) return;
   await deps.db
     .insert(achievements)

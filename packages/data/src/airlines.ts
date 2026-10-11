@@ -33,18 +33,27 @@ export const AIRLINES: readonly Airline[] = [
 export const AIRLINES_BY_IATA: ReadonlyMap<string, Airline> = new Map(AIRLINES.map((a) => [a.iata, a]));
 
 export const AIRCRAFT_TYPES: readonly AircraftType[] = [
+  { code: "AT7", name: "ATR 72", family: "regional" },
+  { code: "E90", name: "Embraer E190", family: "regional" },
+  { code: "223", name: "Airbus A220-300", family: "narrowbody" },
   { code: "320", name: "Airbus A320", family: "narrowbody" },
+  { code: "321", name: "Airbus A321", family: "narrowbody" },
   { code: "32N", name: "Airbus A320neo", family: "narrowbody" },
   { code: "32Q", name: "Airbus A321neo", family: "narrowbody" },
   { code: "738", name: "Boeing 737-800", family: "narrowbody" },
   { code: "7M8", name: "Boeing 737 MAX 8", family: "narrowbody" },
+  { code: "7M9", name: "Boeing 737 MAX 9", family: "narrowbody" },
   { code: "333", name: "Airbus A330-300", family: "widebody_twin" },
+  { code: "339", name: "Airbus A330-900", family: "widebody_twin" },
+  { code: "763", name: "Boeing 767-300ER", family: "widebody_twin" },
   { code: "359", name: "Airbus A350-900", family: "widebody_twin" },
   { code: "351", name: "Airbus A350-1000", family: "widebody_twin" },
   { code: "77W", name: "Boeing 777-300ER", family: "widebody_twin" },
   { code: "788", name: "Boeing 787-8", family: "widebody_twin" },
   { code: "789", name: "Boeing 787-9", family: "widebody_twin" },
+  { code: "78X", name: "Boeing 787-10", family: "widebody_twin" },
   { code: "388", name: "Airbus A380-800", family: "widebody_quad" },
+  { code: "748", name: "Boeing 747-8", family: "widebody_quad" },
 ];
 
 export const AIRCRAFT_BY_CODE: ReadonlyMap<string, AircraftType> = new Map(AIRCRAFT_TYPES.map((a) => [a.code, a]));
