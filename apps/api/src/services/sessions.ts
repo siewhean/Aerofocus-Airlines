@@ -1,12 +1,14 @@
 import {
   ACHIEVEMENTS,
-  boardingDecision,
   buildTravelMark,
   computeStats,
   createFlightPlan,
   earnedAchievements,
   greatCircleDistanceKm,
+  itineraryLegBoardingDecision,
   levelFor,
+  loungeAccess,
+  nextVisitNumber,
   nextLevelProgress,
   planForSession,
   routeFacts,
@@ -29,11 +31,14 @@ import {
   flightSessions,
   focusEvents,
   importedFlights,
+  itineraries,
   scheduleSnapshots,
   travelMarks,
+  users,
 } from "../db/schema";
 import { ApiError, notFound } from "../errors";
 import { airportOrThrow, findSnapshot } from "./catalogue";
+import { refreshItineraryById, refreshUserItineraries } from "./itineraries";
 
 export type BookingRow = typeof bookings.$inferSelect;
 export type SessionRow = typeof flightSessions.$inferSelect;
@@ -134,6 +139,9 @@ export async function finalizeIfDone(deps: AppDeps, loaded: LoadedSession, userT
   if (!FINAL_OUTCOMES.has(summary.outcome)) return false;
   const destination = airportOrThrow(loaded.snapshot.destination);
   const finalized = await deps.db.transaction(async (tx) => {
+    // Per-user lock: concurrent finalisations into the same country must not read the same previous
+    // marks and get the same visitNumber (FR-050). Held until the mark is inserted.
+    await tx.select({ id: users.id }).from(users).where(eq(users.id, loaded.row.userId)).for("update");
     const updated = await tx
       .update(flightSessions)
       .set({
@@ -147,12 +155,26 @@ export async function finalizeIfDone(deps: AppDeps, loaded: LoadedSession, userT
       .returning({ id: flightSessions.id });
     if (updated.length === 0) return false;
     if (summary.outcome === "complete") {
+      // Intermediate airports of an itinerary get a transit mark; the final destination a normal
+      // arrival mark (FR-048, FR-049). visitNumber counts transit and final arrivals (FR-050).
+      let isTransit = false;
+      const { itineraryId, legIndex } = loaded.booking;
+      if (itineraryId !== null && legIndex !== null) {
+        const legs = await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.itineraryId, itineraryId));
+        isTransit = legIndex < legs.length - 1;
+      }
+      const previous = await tx
+        .select({ country: travelMarks.country })
+        .from(travelMarks)
+        .where(and(eq(travelMarks.userId, loaded.row.userId), eq(travelMarks.country, destination.country)));
       const mark = buildTravelMark({
         snapshot: loaded.snapshot,
         destinationCountry: destination.country,
         arrival: loaded.data.arrival,
         userTimeZone,
         designs: deps.designs,
+        isTransit,
+        visitNumber: nextVisitNumber(previous, destination.country),
       });
       await tx
         .insert(travelMarks)
@@ -161,7 +183,11 @@ export async function finalizeIfDone(deps: AppDeps, loaded: LoadedSession, userT
     }
     return true;
   });
-  if (finalized) await refreshAchievements(deps, loaded.row.userId, userTimeZone, now);
+  if (finalized) {
+    // Journey achievements need the itinerary's refreshed status (FR-045).
+    if (loaded.booking.itineraryId !== null) await refreshItineraryById(deps, loaded.booking.itineraryId, now);
+    await refreshAchievements(deps, loaded.row.userId, userTimeZone, now);
+  }
   return finalized;
 }
 
@@ -178,18 +204,35 @@ export async function finalizeOpenSessions(deps: AppDeps, userId: string, userTi
   }
 }
 
-/** Marks bookings whose boarding window has closed as no-shows (FR-004). */
+/**
+ * Marks bookings whose boarding window has closed as no-shows (FR-004), then refreshes itineraries.
+ * Connecting legs use the connecting-leg window (missed connection) and are only marked once the
+ * previous leg was boarded; otherwise the itinerary refresh cancels them.
+ */
 export async function markNoShows(deps: AppDeps, userId: string, now: Instant): Promise<void> {
   const open = await deps.db.select().from(bookings).where(and(eq(bookings.userId, userId), eq(bookings.status, "booked")));
-  const lapsed = open.filter((b) => boardingDecision(b, now) === "no_show").map((b) => b.id);
+  const itineraryIds = [...new Set(open.map((b) => b.itineraryId).filter((id): id is string => id !== null))];
+  const legs = itineraryIds.length
+    ? await deps.db
+        .select({ itineraryId: bookings.itineraryId, legIndex: bookings.legIndex, status: bookings.status })
+        .from(bookings)
+        .where(inArray(bookings.itineraryId, itineraryIds))
+    : [];
+  const previousBoarded = (b: BookingRow): boolean =>
+    legs.some((l) => l.itineraryId === b.itineraryId && l.legIndex === (b.legIndex ?? 0) - 1 && l.status === "boarded");
+  const lapsed = open
+    .filter((b) => b.itineraryId === null || (b.legIndex ?? 0) === 0 || previousBoarded(b))
+    .filter((b) => itineraryLegBoardingDecision(b, b.legIndex ?? 0, now) === "no_show")
+    .map((b) => b.id);
   if (lapsed.length > 0) {
     await deps.db.update(bookings).set({ status: "no_show" }).where(and(inArray(bookings.id, lapsed), eq(bookings.status, "booked")));
   }
+  await refreshUserItineraries(deps, userId, now);
 }
 
 export async function userRecords(deps: AppDeps, userId: string): Promise<FlightRecord[]> {
   const sessions = await deps.db
-    .select({ row: flightSessions, snapshot: scheduleSnapshots.data, mode: bookings.mode })
+    .select({ row: flightSessions, snapshot: scheduleSnapshots.data, mode: bookings.mode, booking: bookings })
     .from(flightSessions)
     .innerJoin(bookings, eq(bookings.id, flightSessions.bookingId))
     .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, bookings.snapshotId))
@@ -204,6 +247,36 @@ export async function userRecords(deps: AppDeps, userId: string): Promise<Flight
     .from(bookings)
     .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, bookings.snapshotId))
     .where(and(eq(bookings.userId, userId), eq(bookings.status, "no_show")));
+
+  // Itinerary fields (FR-041, FR-050): legs, status, transit, layover and lounge per leg.
+  const userItineraries = await deps.db
+    .select({ id: itineraries.id, status: itineraries.status })
+    .from(itineraries)
+    .where(eq(itineraries.userId, userId));
+  const itineraryLegs = userItineraries.length
+    ? await deps.db
+        .select({ booking: bookings, departure: flightSessions.departure, arrival: flightSessions.arrival })
+        .from(bookings)
+        .leftJoin(flightSessions, eq(flightSessions.bookingId, bookings.id))
+        .where(inArray(bookings.itineraryId, userItineraries.map((i) => i.id)))
+    : [];
+  const statusById = new Map(userItineraries.map((i) => [i.id, i.status]));
+  const itineraryFields = (b: BookingRow, arrival: Instant | null): Partial<FlightRecord> => {
+    if (b.itineraryId === null || b.legIndex === null) return {};
+    const legs = itineraryLegs.filter((l) => l.booking.itineraryId === b.itineraryId);
+    const next = legs.find((l) => l.booking.legIndex === (b.legIndex as number) + 1);
+    const isTransit = next !== undefined;
+    return {
+      itineraryId: b.itineraryId,
+      legIndex: b.legIndex,
+      itineraryLegs: legs.length,
+      itineraryStatus: statusById.get(b.itineraryId) ?? null,
+      isTransit,
+      layoverMs: next && next.departure !== null && arrival !== null ? next.departure - arrival : null,
+      premiumLounge: next ? loungeAccess(b.cabin, next.booking.cabin) === "premium" : false,
+      layoverFocusMs: b.layoverFocusMs,
+    };
+  };
 
   const base = (s: ScheduleSnapshot) => {
     const origin = airportOrThrow(s.origin);
@@ -223,10 +296,11 @@ export async function userRecords(deps: AppDeps, userId: string): Promise<Flight
       createFlightPlan({ origin: airportOrThrow(s.origin), destination: airportOrThrow(s.destination), departure, blockMs: arrival - departure }),
     );
   const records: FlightRecord[] = [];
-  for (const { row, snapshot, mode } of sessions) {
+  for (const { row, snapshot, mode, booking } of sessions) {
     if (row.outcome === null || !FINAL_OUTCOMES.has(row.outcome)) continue;
     records.push({
       ...base(snapshot),
+      ...itineraryFields(booking, row.arrival),
       mode,
       ...(row.outcome === "complete" ? { facts: facts(snapshot, row.departure, row.arrival) } : {}),
       outcome: row.outcome as FlightRecord["outcome"],
@@ -254,6 +328,7 @@ export async function userRecords(deps: AppDeps, userId: string): Promise<Flight
   for (const { booking, snapshot } of noShows) {
     records.push({
       ...base(snapshot),
+      ...itineraryFields(booking, null),
       outcome: "no_show",
       departure: booking.plannedDeparture,
       arrival: booking.plannedArrival,

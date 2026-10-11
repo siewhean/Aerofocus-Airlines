@@ -16,6 +16,7 @@ export const AIRPORTS: readonly Airport[] = [
   { iata: "DEL", name: "Indira Gandhi International", city: "Delhi", country: "IN", region: "asia", lat: 28.5562, lon: 77.1, timeZone: "Asia/Kolkata" },
   { iata: "BOM", name: "Chhatrapati Shivaji Maharaj International", city: "Mumbai", country: "IN", region: "asia", lat: 19.0896, lon: 72.8656, timeZone: "Asia/Kolkata" },
   { iata: "SYD", name: "Sydney Kingsford Smith", city: "Sydney", country: "AU", region: "oceania", lat: -33.9399, lon: 151.1753, timeZone: "Australia/Sydney" },
+  { iata: "BNE", name: "Brisbane", city: "Brisbane", country: "AU", region: "oceania", lat: -27.3842, lon: 153.1175, timeZone: "Australia/Brisbane" },
   { iata: "MEL", name: "Melbourne Tullamarine", city: "Melbourne", country: "AU", region: "oceania", lat: -37.669, lon: 144.841, timeZone: "Australia/Melbourne" },
   { iata: "DXB", name: "Dubai International", city: "Dubai", country: "AE", region: "middle_east", lat: 25.2532, lon: 55.3657, timeZone: "Asia/Dubai" },
   { iata: "DOH", name: "Hamad International", city: "Doha", country: "QA", region: "middle_east", lat: 25.2731, lon: 51.6081, timeZone: "Asia/Qatar" },

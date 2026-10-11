@@ -23,3 +23,5 @@ export * from "./geometry";
 export * from "./timeline";
 export * from "./clustering";
 export * from "./route-facts";
+export * from "./itinerary";
+export * from "./layover";

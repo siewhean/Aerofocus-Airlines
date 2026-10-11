@@ -79,4 +79,17 @@ export const SAMPLE_PATTERNS: readonly WeeklyPattern[] = [
   { airline: "VN", flightNumber: "1", origin: "SGN", destination: "HND", departureLocal: "23:50", blockMinutes: 360, days: DAILY, aircraft: "78X", cabins: EPB },
   { airline: "KE", flightNumber: "17", origin: "ICN", destination: "LAX", departureLocal: "14:30", blockMinutes: 670, days: DAILY, aircraft: "748", cabins: EBF },
   { airline: "MH", flightNumber: "1", origin: "KUL", destination: "LHR", departureLocal: "23:30", blockMinutes: 805, days: [2, 4, 6, 7], aircraft: "339", cabins: EB },
+  // Connecting services (Phase 3, illustrative). Layovers below are at published times; departureLocal
+  // is origin wall-clock time and arrival = departure + block, so check each pair across time zones.
+  // SIN→DOH→LHR: QR945 lands DOH 23:55 local; QR15 departs 01:50 → 1 h 55 layover (QR1 07:45 → 7 h 50).
+  { airline: "QR", flightNumber: "15", origin: "DOH", destination: "LHR", departureLocal: "01:50", blockMinutes: 420, days: DAILY, aircraft: "351", cabins: EB },
+  // KUL→SIN→SYD: SQ117 lands SIN 17:30; SQ211 departs 20:35 → 3 h 05 layover (TR12 21:00 → 3 h 30).
+  { airline: "SQ", flightNumber: "117", origin: "KUL", destination: "SIN", departureLocal: "16:30", blockMinutes: 60, days: DAILY, aircraft: "359", cabins: EB },
+  // SIN→LHR→JFK: SQ322 lands LHR 06:00 UTC; BA175 departs 13:30 local → 6 h 30 (BST) / 7 h 30 (GMT).
+  { airline: "BA", flightNumber: "175", origin: "LHR", destination: "JFK", departureLocal: "13:30", blockMinutes: 490, days: DAILY, aircraft: "77W", cabins: EPBF },
+  // Short domestic-style connection MEL→SYD→BNE: QF430 lands SYD 08:30; QF520 departs 09:45 → 1 h 15
+  // (minimum 45 min, all airports in AU). JQ810 at 14:00 → 5 h 30.
+  { airline: "QF", flightNumber: "430", origin: "MEL", destination: "SYD", departureLocal: "07:00", blockMinutes: 90, days: DAILY, aircraft: "738", cabins: EB },
+  { airline: "QF", flightNumber: "520", origin: "SYD", destination: "BNE", departureLocal: "09:45", blockMinutes: 90, days: DAILY, aircraft: "738", cabins: EB },
+  { airline: "JQ", flightNumber: "810", origin: "SYD", destination: "BNE", departureLocal: "14:00", blockMinutes: 95, days: DAILY, aircraft: "320", cabins: E },
 ];

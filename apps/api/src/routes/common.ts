@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../auth";
 import type { AppDeps } from "../context";
-import { ApiError } from "../errors";
+import { ApiError, notFound } from "../errors";
 import { getSettings } from "../services/users";
 
 export const timeZoneSchema = z.string().refine(isValidTimeZone, "Unknown IANA time zone");
@@ -29,4 +29,13 @@ export async function userTimeZone(c: Context<AppEnv>, deps: AppDeps): Promise<s
   const tz = c.req.query("timeZone") ?? "UTC";
   if (!isValidTimeZone(tz)) throw new ApiError(400, "invalid_time_zone", "Unknown IANA time zone");
   return tz;
+}
+
+const uuidSchema = z.string().uuid();
+
+/** The `:id` path parameter; anything that is not a UUID cannot exist, so it is a 404 (not a 500). */
+export function idParam(c: Context, what: string): string {
+  const id = c.req.param("id");
+  if (!uuidSchema.safeParse(id).success) throw notFound(what);
+  return id as string;
 }

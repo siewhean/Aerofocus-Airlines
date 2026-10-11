@@ -101,7 +101,8 @@ aircraft, cabin, issued seat (`seat.wingView`), study duration, goal.
 
 Error codes: `outside_booking_window`, `departure_in_past`, `boarding_closed`, `cabin_not_offered`,
 `cabin_locked`, `airline_locked`, `missing_chosen_departure`, `does_not_fit_study_window`,
-`flight_in_progress`, `invalid_draw_token`.
+`flight_in_progress`, `itinerary_conflict` (overlaps a booked leg of an open itinerary),
+`invalid_draw_token`.
 
 ### Manage bookings
 
@@ -109,8 +110,10 @@ Error codes: `outside_booking_window`, `departure_in_past`, `boarding_closed`, `
 |---|---|---|
 | GET | `/v1/bookings` | upcoming and boarded boarding passes ("My Bookings") |
 | GET | `/v1/bookings/:id` | one boarding pass |
-| DELETE | `/v1/bookings/:id` | cancel before boarding |
-| POST | `/v1/bookings/:id/board` | → `{ sessionId }`. Errors `too_early`, `no_show`, `already_boarded` |
+| DELETE | `/v1/bookings/:id` | cancel before boarding. Itinerary legs: `itinerary_leg` (abandon the itinerary instead) |
+| POST | `/v1/bookings/:id/board` | → `{ sessionId }`. Errors `too_early`, `no_show`, `already_boarded`; itinerary legs also `previous_leg_not_boarded`, `previous_leg_not_landed`, `previous_leg_failed`, `itinerary_closed`, `connection_missed` |
+
+Boarding passes carry `itineraryId` and `legIndex` (both `null` for single bookings).
 
 Play the boarding sequence when the user boards. For individual flights the flight clock starts
 when the 90-second sequence ends; for Community Flights it starts at the published departure.
@@ -206,16 +209,214 @@ passenger on a Community Flight sees the same sky. They are decorative, **not re
 `exteriorBrightness` drives the outside view only; the user's reading light and cabin brightness
 settings stay separate (FR-024). Offer a low-power mode that skips rendering scenery (FR-026).
 
+## Connecting flights (Phase 3)
+
+Multi-leg itineraries with scheduled layovers (FR-041–FR-045). Every leg is an ordinary booking and
+flight session: it is boarded with `POST /v1/bookings/:id/board`, flown with the session endpoints,
+and validated within 10 minutes of landing (FR-015). Legs validated before a layover keep their
+focus credit, mark and rewards even if the journey later fails (FR-044).
+
+### Rules (provisional constants in `packages/core/src/itinerary.ts`)
+
+| Rule | Value |
+|---|---|
+| Legs | 1–3 (at most 2 connections), chained, no airport visited twice |
+| Minimum connection | 45 min when the previous origin, layover airport and next destination are in one country; otherwise 60 min. Per-airport overrides map (empty) |
+| Maximum layover | 24 h |
+| Layover | next leg departure − previous leg arrival (FR-042) |
+| Booking window | every leg's **planned** departure within today + 7 days |
+| Connecting-leg boarding | every leg after the first boards like a Community Flight, whatever the mode: opens 15 min before planned departure, closes at takeoff (planned departure + taxi-out). After that the connection is missed (`no_show`). Boarding after planned departure but before takeoff joins in progress: the leg keeps its planned times and focus counts from boarding |
+| Order | leg *i + 1* can be boarded only after leg *i* has landed (its validation may still be pending) |
+| One active flight | an open itinerary (`booked`, `in_progress`) reserves its whole journey: from the first leg's planned departure (actual once boarded) to the last leg's planned arrival, layovers included. A single booking (`POST /v1/bookings`) or another itinerary overlapping that span is refused with `409 itinerary_conflict`, and a new itinerary may not overlap a booked single flight. Once the itinerary closes the reservation ends (at `abandonedAt`, else the last finalised leg's end) |
+
+Modes:
+
+- `community`: every leg is a Community Flight at its published time.
+- `individual`: leg 1 departs now (`depart_now`) or at `chosenDeparture` (`custom`); each later leg
+  is a `custom` leg departing at the previous leg's actual arrival + the published layover. When a
+  leg is boarded, the planned times of later legs are recomputed and stored. A recomputed leg that
+  would fall outside the booking window or overlap another flight is cancelled instead, which makes
+  the itinerary `incomplete`. With `chosenDeparture`, legs fly the services operating on that date
+  (FR-003), like single Custom Departures.
+
+Random Flight draws cannot be used in itineraries; unlocks apply to every leg (FR-065).
+
+### Statuses
+
+`booked` → `in_progress` → `complete` | `incomplete` | `abandoned` | `cancelled`.
+
+- `complete`: every leg's outcome is `complete` (FR-045).
+- `incomplete`: a leg ended `invalid`, `ended_early` or `no_show` (missed connection). Later
+  unboarded legs are cancelled.
+- `abandoned`: the user abandoned (FR-044). Counts as incomplete in stats.
+- Statuses are refreshed lazily on reads (like no-shows); a closed status never changes again.
+
+### Endpoints
+
+| Method | Path | Notes |
+|---|---|---|
+| GET 🔓 | `/v1/itineraries/search?origin&destination&studyStart&studyEnd&mode=community\|individual&maxConnections=1\|2&limit` | → `{ offers: ItineraryOffer[], unlocks }`. `limit` 1–100 (default 20). Guests pass `?timeZone=` (default `UTC`) |
+| POST | `/v1/itineraries` | books every leg → `201 { itinerary }`. `404 not_found` when a `snapshotId` or `rebookedFromId` does not exist (or is not yours) |
+| GET | `/v1/itineraries?limit&before` | → `{ itineraries: Itinerary[], nextBefore, serverTime }`, newest first. `limit` 1–100 (default 20); `before` is a `createdAt` cursor: pass the previous page's `nextBefore` (`null` on the last page) |
+| GET | `/v1/itineraries/:id` | → `{ itinerary, serverTime }` |
+| POST | `/v1/itineraries/:id/abandon` | → `{ itinerary, serverTime }`. Error `not_abandonable` |
+| GET | `/v1/itineraries/:id/rebook?mode&maxConnections&limit` | → `{ rebookedFromId, from, to, offers, serverTime }`. Errors `not_rebookable`, `already_at_destination` |
+| GET | `/v1/itineraries/:id/layover` | → `LayoverResponse` |
+| POST | `/v1/itineraries/:id/layover/focus/start` | → `LayoverResponse`. Errors `outside_layover`, `already_focusing`, `flight_in_progress` |
+| POST | `/v1/itineraries/:id/layover/focus/stop` | → `LayoverResponse`. Errors `outside_layover`, `not_focusing` |
+| POST | `/v1/itineraries/:id/layover/heartbeat` | → `LayoverResponse`. Send every 60 s while the layover screen is open. Errors `outside_layover`, `flight_in_progress` |
+
+Every `:id` that is not a UUID, or not one of your itineraries, is `404 not_found` (the same holds
+for bookings and flight sessions).
+
+`ItineraryOffer`:
+
+```json
+{ "mode": "community", "chosenDeparture": null,
+  "legs": [{ "legIndex": 0, …Offer }, { "legIndex": 1, …Offer }],
+  "layovers": [{ "afterLegIndex": 0, "airport": AirportView, "layoverMs": 6900000, "minimumConnectionMs": 3600000, "domestic": false }],
+  "departure": DisplayTime, "arrival": DisplayTime, "totalMs": …, "connections": 1, "direct": false, "bookable": true }
+```
+
+Each leg is a normal `Offer` (airline and cabin lock state included) whose `departure` is the
+leg's planned departure. Community offers must fit the study window at published times;
+individual offers list each route once, starting now (or at `studyStart`), and must fit the window
+at their chained times. Direct flights are included (`direct: true`). Offers are sorted by total
+journey time, so direct flights normally come first and fill the default `limit`: clients that want
+connections should raise `limit` (up to 100).
+
+Book with the offer's legs:
+
+```json
+{ "mode": "community", "legs": [{ "snapshotId": "…", "cabin": "business" }, { "snapshotId": "…", "cabin": "economy" }],
+  "chosenDeparture": null, "studyWindow": null, "studyGoal": "…", "breakSchedule": null, "rebookedFromId": null }
+```
+
+Errors (422): `no_legs`, `too_many_legs`, `not_chained`, `unknown_airport`, `airport_revisited`,
+`below_minimum_connection`, `layover_too_long`, `outside_booking_window`, plus the per-leg booking
+codes above (`details.errors` lists `{ legIndex, error }`); `does_not_fit_study_window`;
+`rebook_route_mismatch` (a rebooking must go from the current airport to the original destination).
+409: `flight_in_progress` (a boarded flight is still in the air when the journey would start),
+`itinerary_conflict` (the journey overlaps another open itinerary's reserved span or a booked single
+flight), `not_rebookable`, `already_rebooked` (the itinerary already has an open or complete
+rebooking; abandon that one first).
+
+`Itinerary`:
+
+```json
+{ "id": "…", "mode": "community", "status": "in_progress",
+  "origin": AirportView, "destination": AirportView, "currentAirport": AirportView,
+  "rebookedFromId": null, "createdAt": …, "abandonedAt": null, "canAbandon": true,
+  "departure": DisplayTime, "arrival": DisplayTime,
+  "legs": [{ "legIndex": 0, "bookingId": "…", "sessionId": "…", "outcome": "complete", "creditedFocusMs": …, "boardingPass": BoardingPass }],
+  "layovers": [{ "afterLegIndex": 0, "airport": AirportView, "publishedLayoverMs": …, "layoverMs": …, "lounge": "premium", "creditedFocusMs": 1200000 }],
+  "layover": LayoverView | null,
+  "notifications": [{ "type": "boarding_open", "at": …, "legIndex": 1 }] }
+```
+
+`outcome` is the leg's session outcome (`null` before boarding). `layovers[].creditedFocusMs` is
+`null` until that layover's focus credit is final. `layover` is the current layover (after the
+last boarded leg, while a later leg is not boarded), else `null`.
+
+### Abandon and rebook (FR-044)
+
+Abandoning cancels every later leg not yet boarded. A leg in flight is not affected (exit it with
+`POST /v1/sessions/:id/exit` if wanted); completed legs keep their focus, marks and rewards. It is
+refused (`not_abandonable`) once the itinerary is closed or when no booked, unboarded leg remains
+(e.g. only the final leg is left and it is in flight).
+
+From an `incomplete` or `abandoned` itinerary, `GET …/rebook` searches from `currentAirport` (the
+destination of the last completed leg, or the origin) to the original destination. Book an offer
+with `rebookedFromId` to create a new itinerary linked to the old one. An itinerary has at most one
+live rebooking (`booked`, `in_progress` or `complete`); a second is refused with `409 already_rebooked`.
+
+### Layovers, lounge and layover focus (FR-042, FR-043)
+
+`LayoverResponse` = `{ layover: LayoverView | null, departures[], serverTime }`. `departures` is the
+layover airport's departure board for the next 12 hours from the schedule provider
+(`{ snapshotId, flightNumber, airline, destination, departure, yours, dataSource }`; `yours` marks
+the connecting flight).
+
+`LayoverView`:
+
+```json
+{ "afterLegIndex": 0, "nextBookingId": "…", "airport": AirportView, "phase": "in_terminal",
+  "startsAt": DisplayTime, "departsAt": DisplayTime, "layoverMs": …, "deplaningEndsAt": DisplayTime,
+  "boardingOpensAt": DisplayTime, "boardingClosesAt": DisplayTime,
+  "msToBoardingOpen": …, "msToBoardingClose": …, "msToDeparture": …,
+  "lounge": { "access": "premium", "premium": true },
+  "focus": { "focusing": false, "focusMs": …, "creditedMs": …, "final": false, "unattended": [], "window": { "start": …, "end": … } } }
+```
+
+Phases:
+
+| Phase | Meaning |
+|---|---|
+| `not_started` | the arriving leg has not landed |
+| `deplaning` | landed; until the arriving leg is validated or its 10-minute window closes |
+| `in_terminal` | waiting for the connecting flight's boarding to open |
+| `boarding_open` | the connecting flight is boarding (until takeoff) |
+| `missed` | boarding closed without boarding: missed connection, itinerary incomplete |
+| `departed` | the connecting flight was boarded |
+| `cancelled` | the connecting flight was cancelled (abandoned or failed itinerary) |
+
+Countdowns never go negative. **Lounge** is presentation only: `premium` when the arriving or the
+departing leg is booked in business or first, otherwise `terminal`. Lounges are never locked by
+progression (FR-066).
+
+**Layover focus** is optional. Start and stop it with the focus endpoints and send heartbeats
+while it runs. Only attended time inside the layover window counts (the 5-minute unattended rule
+of FR-013a applies). The window runs from the arriving leg's landing until the connecting flight
+is boarded, or, if it is not, until its boarding closes, the itinerary is abandoned, or the
+arriving leg's validation window closes without validation. Credit becomes final when the window
+ends; it is then stored once on the arriving leg's booking (`bookings.layover_focus_ms`) and added
+to the user's credited focus (stats, levels, study streak, Marathon Week), separately from the
+leg's own flight credit. Time is never credited twice: focus start and heartbeats are refused with
+`409 flight_in_progress` while another boarded flight is not yet finalised, and layover focus that
+overlaps any other flight session of the user (boarding to exit or arrival) is not credited.
+
+### Connecting-flight notifications
+
+The server does not push. `itinerary.notifications` is an ordered plan (`{ type, at, legIndex }`)
+for the client to schedule as local notifications; re-fetch after each state change and reschedule.
+
+| Type | When | `legIndex` |
+|---|---|---|
+| `leg_landed` | the leg's (actual or planned) arrival | landing leg |
+| `validate_reminder` | landing + 5 min, until validated | landing leg |
+| `layover_started` | landing at a layover airport | landing leg |
+| `lounge_available` | landing, when the layover has premium lounge access | landing leg |
+| `boarding_open` | connecting leg boarding opens | departing leg |
+| `boarding_closing` | 5 min before the connecting leg's boarding closes | departing leg |
+| `connection_missed` | the connecting leg's boarding closes | departing leg |
+| `itinerary_complete` | the final leg is validated | final leg |
+
+Boarding events disappear once the connecting leg is boarded. Once a leg fails (invalid, ended
+early, missed), no further landing, layover or boarding events are planned. Cancelled legs get none.
+
+### Passport, stats and history
+
+- The arrival of every leg that lands at an intermediate airport earns a **transit** mark
+  (`isTransit: true`); the final destination earns the normal arrival mark (FR-048, FR-049). Every
+  mark has `visitNumber`: how many times the user had then reached that country, transit and final
+  arrivals together (FR-050).
+- Stats add `itinerariesCompleted`, `multiLegItinerariesCompleted`, `multiLegCompletionRate`,
+  `longestCompletedItineraryLegs`, `transitAirports`, `finalDestinations`,
+  `countryVisits` (`{ [country]: { transit, final } }`), `totalLayoverMs`, `longestJourneyMs`
+  (door to door) and `premiumLoungeLayovers`. Layover time is virtual, not physical travel (FR-054).
+- Journey achievements (`category: "journey"`): `first_connection`, `three_leg_journey`,
+  `hub_hopper` (special), `smooth_operator` (special), `lounge_regular`.
+
 ## Progress, passport, history
 
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/v1/me/progression` | `{ stats, level, next (missing requirements), unlocks }` |
-| GET | `/v1/me/stats` | focus hours, simulated flying hours, flights, airports, countries, virtual distance, completion rate, focus-to-break ratio, longest flight, streak, airline/aircraft usage |
-| GET | `/v1/me/history?limit=` | flight log with status `complete` / `invalid` / `ended_early` / `in_flight` |
-| GET | `/v1/me/passport` | `{ cover, marks[], countries[{country, visits}], airports[] }` |
+| GET | `/v1/me/stats` | focus hours, simulated flying hours, flights, airports, countries, virtual distance, completion rate, focus-to-break ratio, longest flight, streak, airline/aircraft usage, and the connecting-flight stats above |
+| GET | `/v1/me/history?limit=` | flight log with status `complete` / `invalid` / `ended_early` / `in_flight`; each item has `itineraryId` and `legIndex` (`null` for single flights) |
+| GET | `/v1/me/passport` | `{ cover, marks[] (with isTransit, visitNumber), countries[{country, visits, transit, final}], airports[] }` |
 | GET | `/v1/me/achievements` | catalogue with `category` and `earnedAt` |
-| GET | `/v1/me/globe` | GeoJSON of completed legs (`kind: "leg"`) and visited airports (`kind: "airport"`, `visits`), plus `countries`. Filters: `airline`, `country` (ISO alpha-2), `from`, `to` (FR-053) |
+| GET | `/v1/me/globe` | GeoJSON of completed legs (`kind: "leg"`, with `itineraryId`, `legIndex`, `isTransit`) and visited airports (`kind: "airport"`, `visits`), plus `countries`. Filters: `airline`, `country` (ISO alpha-2), `from`, `to` (FR-053) |
 
 Travel marks are virtual; never style them to look like official immigration endorsements (FR-048).
 Simulated distance and flying hours are not physical travel (FR-054).
@@ -249,7 +450,9 @@ addresses in one /64 share the 3 ids.
 
 ## Guest mode
 
-Guests use `GuestStore` from `@aerofocus/client` with `localStorage`. It books, boards, runs the
+Guests use `GuestStore` from `@aerofocus/client` with `localStorage`. Guest mode is **single-flight**
+in Phase 3: connecting flights (itineraries, layovers) need an account. Guests may still use
+`GET /v1/itineraries/search?timeZone=` to browse connections. It books, boards, runs the
 focus timeline and validates flights on the device with the same rules as the server; nothing is
 stored on the server (FR-069). Use the search and Random Flight endpoints with `?timeZone=`, and
 `flightPlan()` to get the snapshot to pass to `guest.book()`.

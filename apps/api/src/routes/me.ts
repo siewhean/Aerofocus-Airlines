@@ -6,6 +6,7 @@ import {
   splitAtAntimeridian,
   computeStats,
   isValidPassportColour,
+  nextVisitNumber,
   validateGuestImport,
   type GuestFlightImport,
   type ScheduleSnapshot,
@@ -128,6 +129,8 @@ export function meRoutes(deps: AppDeps) {
         aircraft: aircraftView(snapshot.aircraftType),
         cabin: booking.cabin,
         mode: booking.mode,
+        itineraryId: booking.itineraryId,
+        legIndex: booking.legIndex,
         scheduledBlockMs: snapshot.arrival - snapshot.departure,
         departure: session.departure,
         arrival: session.arrival,
@@ -161,19 +164,31 @@ export function meRoutes(deps: AppDeps) {
     const settings = await getSettings(deps, user.id);
     await finalizeOpenSessions(deps, user.id, settings.timeZone, deps.clock.now());
     const sessions = await deps.db
-      .select({ session: flightSessions, snapshot: scheduleSnapshots.data })
+      .select({ session: flightSessions, snapshot: scheduleSnapshots.data, itineraryId: bookings.itineraryId, legIndex: bookings.legIndex })
       .from(flightSessions)
       .innerJoin(bookings, eq(bookings.id, flightSessions.bookingId))
       .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, bookings.snapshotId))
       .where(eq(flightSessions.userId, user.id));
+    const marks = await deps.db
+      .select({ sessionId: travelMarks.sessionId, isTransit: travelMarks.isTransit })
+      .from(travelMarks)
+      .where(eq(travelMarks.userId, user.id));
+    const transitSessions = new Set(marks.filter((m) => m.isTransit).map((m) => m.sessionId));
     const imported = await deps.db
       .select({ row: importedFlights, snapshot: scheduleSnapshots.data })
       .from(importedFlights)
       .innerJoin(scheduleSnapshots, eq(scheduleSnapshots.id, importedFlights.snapshotId))
       .where(eq(importedFlights.userId, user.id));
     const legs = [
-      ...sessions.filter((r) => r.session.outcome === "complete").map((r) => ({ id: r.session.id, snapshot: r.snapshot, departure: r.session.departure, arrival: r.session.arrival })),
-      ...imported.filter((r) => r.row.outcome === "complete").map((r) => ({ id: r.row.id, snapshot: r.snapshot, departure: r.row.departure, arrival: r.row.arrival })),
+      ...sessions
+        .filter((r) => r.session.outcome === "complete")
+        .map((r) => ({
+          id: r.session.id, snapshot: r.snapshot, departure: r.session.departure, arrival: r.session.arrival,
+          itineraryId: r.itineraryId, legIndex: r.legIndex, isTransit: transitSessions.has(r.session.id),
+        })),
+      ...imported
+        .filter((r) => r.row.outcome === "complete")
+        .map((r) => ({ id: r.row.id, snapshot: r.snapshot, departure: r.row.departure, arrival: r.row.arrival, itineraryId: null, legIndex: null, isTransit: false })),
     ]
       .filter((l) => !q.airline || l.snapshot.operatingAirline === q.airline)
       .filter((l) => !q.country || AIRPORTS_BY_IATA.get(l.snapshot.destination)?.country === q.country)
@@ -200,6 +215,10 @@ export function meRoutes(deps: AppDeps) {
           departure: l.departure,
           arrivalDate: localDate(l.arrival, settings.timeZone),
           blockMs: l.arrival - l.departure,
+          itineraryId: l.itineraryId,
+          legIndex: l.legIndex,
+          /** Landed at an intermediate (layover) airport (FR-048). */
+          isTransit: l.isTransit,
           estimated: true,
         },
       };
@@ -221,12 +240,19 @@ export function meRoutes(deps: AppDeps) {
     const settings = await getSettings(deps, user.id);
     await finalizeOpenSessions(deps, user.id, settings.timeZone, deps.clock.now());
     const marks = await deps.db.select().from(travelMarks).where(eq(travelMarks.userId, user.id)).orderBy(travelMarks.createdAt);
-    const visits = new Map<string, number>();
-    for (const m of marks) visits.set(m.country, (visits.get(m.country) ?? 0) + 1);
+    // Visits per country, split into transit and final arrivals (FR-050).
+    const visits = new Map<string, { visits: number; transit: number; final: number }>();
+    for (const m of marks) {
+      const v = visits.get(m.country) ?? { visits: 0, transit: 0, final: 0 };
+      v.visits++;
+      if (m.isTransit) v.transit++;
+      else v.final++;
+      visits.set(m.country, v);
+    }
     return c.json({
       cover: settings.passportColour,
       marks,
-      countries: [...visits].map(([country, count]) => ({ country, visits: count })),
+      countries: [...visits].map(([country, v]) => ({ country, ...v })),
       airports: [...new Set(marks.map((m) => m.airport))].map((iata) => {
         const a = AIRPORTS_BY_IATA.get(iata);
         return a ? airportView(a) : { iata };
@@ -290,12 +316,17 @@ export function meRoutes(deps: AppDeps) {
       if (inserted.length === 0) continue;
       imported++;
       if (record.outcome === "complete") {
+        const previous = await deps.db
+          .select({ country: travelMarks.country })
+          .from(travelMarks)
+          .where(eq(travelMarks.userId, user.id));
         const mark = buildTravelMark({
           snapshot,
           destinationCountry: record.destinationCountry,
           arrival: record.arrival,
           userTimeZone: settings.timeZone,
           designs: deps.designs,
+          visitNumber: nextVisitNumber(previous, record.destinationCountry),
         });
         await deps.db.insert(travelMarks).values({ userId: user.id, sessionId: null, ...mark, createdAt: now });
       }

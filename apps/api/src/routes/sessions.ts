@@ -26,6 +26,7 @@ import { ApiError, parseJson, parseQuery } from "../errors";
 import { finalizeIfDone, loadSession, saveSession, viewFor, type LoadedSession } from "../services/sessions";
 import { getSettings } from "../services/users";
 import { boardingPass } from "./bookings";
+import { idParam } from "./common";
 
 const ACTION_ERRORS: Record<string, [number, string]> = {
   flight_finished: [409, "This flight has finished"],
@@ -78,7 +79,7 @@ export function sessionRoutes(deps: AppDeps) {
   async function act(c: Context<AppEnv>, action: SessionAction) {
     const user = requireUser(c.get("user"));
     const tz = (await getSettings(deps, user.id)).timeZone;
-    const loaded = await loadSession(deps, c.req.param("id") ?? "", user.id);
+    const loaded = await loadSession(deps, idParam(c, "Flight session"), user.id);
     const result = applySessionAction(loaded.data, action, deps.clock.now());
     if (!result.ok) {
       const [status, message] = ACTION_ERRORS[result.error] ?? [409, result.error];
@@ -112,7 +113,7 @@ export function sessionRoutes(deps: AppDeps) {
   app.get("/:id", async (c) => {
     const user = requireUser(c.get("user"));
     const tz = (await getSettings(deps, user.id)).timeZone;
-    const loaded = await loadSession(deps, c.req.param("id"), user.id);
+    const loaded = await loadSession(deps, idParam(c, "Flight session"), user.id);
     return c.json(await respond(loaded, tz, user.displayName));
   });
 
@@ -151,7 +152,7 @@ export function sessionRoutes(deps: AppDeps) {
   app.get("/:id/route", async (c) => {
     const user = requireUser(c.get("user"));
     const tz = (await getSettings(deps, user.id)).timeZone;
-    const loaded = await loadSession(deps, c.req.param("id"), user.id);
+    const loaded = await loadSession(deps, idParam(c, "Flight session"), user.id);
     const now = deps.clock.now();
     const { plan } = viewFor(loaded, now);
     return c.json({
@@ -168,7 +169,7 @@ export function sessionRoutes(deps: AppDeps) {
    */
   app.get("/:id/scenery", async (c) => {
     const user = requireUser(c.get("user"));
-    const loaded = await loadSession(deps, c.req.param("id"), user.id);
+    const loaded = await loadSession(deps, idParam(c, "Flight session"), user.id);
     const now = deps.clock.now();
     const { plan } = viewFor(loaded, now);
     const state = flightStateAt(plan, now);
@@ -196,7 +197,7 @@ export function sessionRoutes(deps: AppDeps) {
       }),
     );
     const tz = (await getSettings(deps, user.id)).timeZone;
-    const loaded = await loadSession(deps, c.req.param("id"), user.id);
+    const loaded = await loadSession(deps, idParam(c, "Flight session"), user.id);
     const { plan } = viewFor(loaded, deps.clock.now());
     const labelled = (point: InspectionPoint) => c.json({ point: { ...point, placeLabel: describePosition(point.position, AIRPORTS) } });
     if (q.offsetMs !== undefined) return labelled(inspectAtOffset(plan, q.offsetMs, tz));

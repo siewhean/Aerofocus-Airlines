@@ -1,12 +1,18 @@
 import {
   assignSeat,
   boardFlight,
-  boardingWindow,
   checkBookingRequest,
   communityFlightKey,
   displayTime,
+  isItineraryClosed,
+  isWithinBookingWindow,
+  itineraryLegBoardingWindow,
+  legBoardingBlock,
+  legBoardingTimes,
   plannedTimes,
+  recomputeItineraryTimes,
   type DepartureMode,
+  type ScheduleSnapshot,
 } from "@aerofocus/core";
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { Hono } from "hono";
@@ -25,10 +31,11 @@ import {
   storeSnapshot,
   verifyRandomDraw,
 } from "../services/catalogue";
-import { markNoShows, progressionFor, type BookingRow } from "../services/sessions";
+import { assertNoFlightConflict, findFlightConflict, legProgress, loadItinerary, refreshItinerary } from "../services/itineraries";
+import { finalizeOpenSessions, markNoShows, progressionFor, type BookingRow } from "../services/sessions";
 import { getSettings } from "../services/users";
 import { AIRLINES_BY_IATA, seatMapFor } from "@aerofocus/data";
-import { breakScheduleSchema, cabinSchema } from "./common";
+import { breakScheduleSchema, cabinSchema, idParam } from "./common";
 
 const bookingSchema = z.object({
   snapshotId: z.string().min(1),
@@ -41,12 +48,24 @@ const bookingSchema = z.object({
   drawToken: z.string().nullish(),
 });
 
-/** Virtual boarding pass (FR-008). Times are shown in the user's local time zone. */
-export async function boardingPass(deps: AppDeps, b: BookingRow, timeZone: string, displayName: string | null) {
-  const snapshot = await snapshotOrThrow(deps, b.snapshotId);
-  const window = boardingWindow(b);
+/**
+ * Virtual boarding pass (FR-008). Times are shown in the user's local time zone. Connecting legs of
+ * an itinerary show the connecting-leg boarding window (15 minutes before departure until takeoff).
+ */
+export async function boardingPass(
+  deps: AppDeps,
+  b: BookingRow,
+  timeZone: string,
+  displayName: string | null,
+  /** The booking's snapshot when the caller already has it (saves a lookup per leg). */
+  known?: ScheduleSnapshot,
+) {
+  const snapshot = known?.id === b.snapshotId ? known : await snapshotOrThrow(deps, b.snapshotId);
+  const window = itineraryLegBoardingWindow(b, b.legIndex ?? 0);
   return {
     bookingId: b.id,
+    itineraryId: b.itineraryId,
+    legIndex: b.legIndex,
     status: b.status,
     mode: b.mode,
     flightType: b.mode === "community" ? "community" : "individual",
@@ -81,6 +100,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   missing_chosen_departure: "Choose a departure time",
   does_not_fit_study_window: "This flight does not fit your study window",
   private_not_scheduled: "Private aviation is not available on scheduled flights",
+};
+
+const LEG_BLOCK_MESSAGES: Record<string, string> = {
+  itinerary_closed: "This itinerary has ended",
+  previous_leg_not_boarded: "Fly the previous leg first",
+  previous_leg_not_landed: "The previous leg has not landed yet",
+  previous_leg_failed: "The previous leg was not completed",
 };
 
 export function bookingRoutes(deps: AppDeps) {
@@ -126,20 +152,9 @@ export function bookingRoutes(deps: AppDeps) {
     }
 
     // One active booking at a time keeps the focus timer unambiguous.
-    const active = await deps.db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(and(eq(bookings.userId, user.id), eq(bookings.status, "boarded")));
-    const openSessions = active.length
-      ? await deps.db
-          .select({ id: flightSessions.id, finalizedAt: flightSessions.finalizedAt, arrival: flightSessions.arrival })
-          .from(flightSessions)
-          .where(inArray(flightSessions.bookingId, active.map((a) => a.id)))
-      : [];
     const planned = plannedTimes(mode, snapshot, { now, chosenDeparture: chosen });
-    if (openSessions.some((s) => s.finalizedAt === null && s.arrival > planned.departure)) {
-      throw new ApiError(409, "flight_in_progress", "Finish or leave your current flight first");
-    }
+    await markNoShows(deps, user.id, now);
+    await assertNoFlightConflict(deps, user.id, [planned], now);
 
     await storeSnapshot(deps, snapshot);
     const aircraft = aircraftView(snapshot.aircraftType);
@@ -180,8 +195,9 @@ export function bookingRoutes(deps: AppDeps) {
 
   app.get("/:id", async (c) => {
     const user = requireUser(c.get("user"));
+    const id = idParam(c, "Booking");
     await markNoShows(deps, user.id, deps.clock.now());
-    const [b] = await deps.db.select().from(bookings).where(and(eq(bookings.id, c.req.param("id")), eq(bookings.userId, user.id)));
+    const [b] = await deps.db.select().from(bookings).where(and(eq(bookings.id, id), eq(bookings.userId, user.id)));
     if (!b) throw notFound("Booking");
     const tz = (await getSettings(deps, user.id)).timeZone;
     return c.json({ boardingPass: await boardingPass(deps, b, tz, user.displayName) });
@@ -189,25 +205,59 @@ export function bookingRoutes(deps: AppDeps) {
 
   app.delete("/:id", async (c) => {
     const user = requireUser(c.get("user"));
+    const id = idParam(c, "Booking");
+    const [leg] = await deps.db
+      .select({ itineraryId: bookings.itineraryId })
+      .from(bookings)
+      .where(and(eq(bookings.id, id), eq(bookings.userId, user.id)));
+    if (leg?.itineraryId) {
+      throw new ApiError(409, "itinerary_leg", "Connecting-flight legs are cancelled by abandoning the itinerary");
+    }
     const cancelled = await deps.db
       .update(bookings)
       .set({ status: "cancelled" })
-      .where(and(eq(bookings.id, c.req.param("id")), eq(bookings.userId, user.id), eq(bookings.status, "booked")))
+      .where(and(eq(bookings.id, id), eq(bookings.userId, user.id), eq(bookings.status, "booked")))
       .returning({ id: bookings.id });
     if (cancelled.length === 0) throw new ApiError(409, "not_cancellable", "Only bookings not yet boarded can be cancelled");
     return c.json({ ok: true });
   });
 
-  /** Board the flight: creates the flight session (FR-004, FR-009). */
+  /**
+   * Board the flight: creates the flight session (FR-004, FR-009). Itinerary legs: leg i+1 boards
+   * only after leg i has landed; connecting legs board like Community Flights (15 minutes before
+   * departure until takeoff, then the connection is missed); later individual legs are re-timed from
+   * the boarded leg's actual times.
+   */
   app.post("/:id/board", async (c) => {
     const user = requireUser(c.get("user"));
     const now = deps.clock.now();
-    const [b] = await deps.db.select().from(bookings).where(and(eq(bookings.id, c.req.param("id")), eq(bookings.userId, user.id)));
-    if (!b) throw notFound("Booking");
-    if (b.status !== "booked") throw new ApiError(409, `booking_${b.status}`, `Booking is ${b.status.replace("_", "-")}`);
     const settings = await getSettings(deps, user.id);
+    const id = idParam(c, "Booking");
+    const load = async () => (await deps.db.select().from(bookings).where(and(eq(bookings.id, id), eq(bookings.userId, user.id))))[0];
+    let b = await load();
+    if (!b) throw notFound("Booking");
+    const legIndex = b.legIndex ?? 0;
+    if (b.itineraryId !== null) {
+      // Bring the itinerary up to date first: finalise landed legs, mark missed connections.
+      await finalizeOpenSessions(deps, user.id, settings.timeZone, now);
+      await markNoShows(deps, user.id, now);
+      b = (await load())!;
+    }
+    if (b.status === "no_show" && b.itineraryId !== null && legIndex > 0) {
+      throw new ApiError(409, "connection_missed", "Boarding has closed: connection missed");
+    }
+    if (b.status !== "booked") throw new ApiError(409, `booking_${b.status}`, `Booking is ${b.status.replace("_", "-")}`);
+    if (b.itineraryId !== null) {
+      const it = await loadItinerary(deps, b.itineraryId, user.id, now);
+      const progress = legProgress(it).map((p, i) => ({ ...p, arrival: it.legs[i]!.session?.arrival ?? null }));
+      const block = legBoardingBlock(progress, legIndex, now, { abandoned: it.row.status === "abandoned" });
+      if (block !== null || isItineraryClosed(it.row.status)) {
+        const code = block ?? "itinerary_closed";
+        throw new ApiError(409, code, LEG_BLOCK_MESSAGES[code] ?? "This leg cannot be boarded");
+      }
+    }
     const result = boardFlight({
-      booking: b,
+      booking: legBoardingTimes(b, legIndex),
       snapshotId: b.snapshotId,
       cabin: b.cabin,
       seat: b.seat,
@@ -217,10 +267,19 @@ export function bookingRoutes(deps: AppDeps) {
       now,
     });
     if (!result.ok) {
-      if (result.error === "no_show") await deps.db.update(bookings).set({ status: "no_show" }).where(eq(bookings.id, b.id));
-      throw new ApiError(409, result.error, result.error === "too_early" ? "Boarding has not opened yet" : "Boarding has closed");
+      if (result.error === "no_show") {
+        await deps.db.update(bookings).set({ status: "no_show" }).where(and(eq(bookings.id, b.id), eq(bookings.status, "booked")));
+        if (b.itineraryId !== null) await refreshItinerary(deps, await loadItinerary(deps, b.itineraryId, user.id, now), now);
+      }
+      const missed = result.error === "no_show" && legIndex > 0;
+      throw new ApiError(
+        409,
+        missed ? "connection_missed" : result.error,
+        result.error === "too_early" ? "Boarding has not opened yet" : missed ? "Boarding has closed: connection missed" : "Boarding has closed",
+      );
     }
-    const s = result.session;
+    // Connecting legs board with community rules but keep their own sharing rules.
+    const s = { ...result.session, isPublic: b.mode === "community" ? false : settings.shareFlightsByDefault };
     const sessionId = await deps.db.transaction(async (tx) => {
       const updated = await tx
         .update(bookings)
@@ -243,6 +302,35 @@ export function bookingRoutes(deps: AppDeps) {
       await tx.insert(attendanceSignals).values(s.signals.map((sig) => ({ sessionId: row!.id, kind: sig.kind, at: sig.at })));
       return row!.id;
     });
+    if (b.itineraryId !== null) {
+      const it = await loadItinerary(deps, b.itineraryId, user.id, now);
+      if (it.row.mode === "individual") {
+        // Later legs keep the published layover after this leg's actual arrival (FR-042).
+        const plans = recomputeItineraryTimes(
+          "individual",
+          it.legs.map((l) => l.snapshot),
+          it.legs.map((l, i) => ({ legIndex: i, mode: l.booking.mode, departure: l.booking.plannedDeparture, arrival: l.booking.plannedArrival })),
+          { legIndex, departure: s.departure, arrival: s.arrival },
+        );
+        for (const leg of it.legs.slice(legIndex + 1)) {
+          const plan = plans[leg.booking.legIndex ?? 0]!;
+          if (leg.booking.status !== "booked") continue;
+          if (plan.departure === leg.booking.plannedDeparture && plan.arrival === leg.booking.plannedArrival) continue;
+          // A shifted leg must still be bookable: inside the booking window and not overlapping
+          // another flight. Otherwise it is cancelled and the refresh below makes the itinerary
+          // incomplete (and cancels any later legs) instead of silently keeping it.
+          const allowed =
+            isWithinBookingWindow(plan.departure, now, settings.timeZone) &&
+            (await findFlightConflict(deps, user.id, [plan], now, { itinerary: true, excludeItineraryId: it.row.id })) === null;
+          await deps.db
+            .update(bookings)
+            .set(allowed ? { plannedDeparture: plan.departure, plannedArrival: plan.arrival } : { status: "cancelled" })
+            .where(and(eq(bookings.id, leg.booking.id), eq(bookings.status, "booked")));
+          if (!allowed) break;
+        }
+      }
+      await refreshItinerary(deps, await loadItinerary(deps, b.itineraryId, user.id, now), now);
+    }
     invalidateCommunityCache(deps);
     return c.json({ sessionId }, 201);
   });

@@ -5,6 +5,9 @@ import type {
   CabinClass,
   DepartureMode,
   FocusEventType,
+  ItineraryMode,
+  ItineraryStatus,
+  LayoverEventType,
   ScheduleSnapshot,
   SeatAssignment,
   SessionOutcome,
@@ -15,12 +18,14 @@ import {
   bigserial,
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
   text,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 /** Instants are stored as epoch milliseconds (UTC), matching @aerofocus/core. */
@@ -92,6 +97,28 @@ export const scheduleSnapshots = pgTable(
   (t) => [index("schedule_snapshots_service_idx").on(t.operatingAirline, t.flightNumber, t.operatingDate)],
 );
 
+/** Multi-leg itineraries (FR-041–FR-045). Each leg is a booking with itineraryId + legIndex. */
+export const itineraries = pgTable(
+  "itineraries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mode: text("mode").$type<ItineraryMode>().notNull(),
+    /** Refreshed lazily on reads; closed statuses never change again. */
+    status: text("status").$type<ItineraryStatus>().notNull().default("booked"),
+    origin: text("origin").notNull(),
+    destination: text("destination").notNull(),
+    /** The abandoned or incomplete itinerary this one rebooks (FR-044). */
+    rebookedFromId: uuid("rebooked_from_id").references((): AnyPgColumn => itineraries.id, { onDelete: "set null" }),
+    /** When the user abandoned the itinerary; ends any running layover window. */
+    abandonedAt: instant("abandoned_at"),
+    createdAt: instant("created_at").notNull(),
+  },
+  (t) => [index("itineraries_user_idx").on(t.userId, t.createdAt), index("itineraries_rebooked_from_idx").on(t.rebookedFromId)],
+);
+
 export const bookings = pgTable(
   "bookings",
   {
@@ -115,12 +142,39 @@ export const bookings = pgTable(
     /** Community Flight key (flight number + operating date); null for individual flights. */
     communityKey: text("community_key"),
     status: text("status").$type<BookingStatus>().notNull().default("booked"),
+    /**
+     * Itinerary leg (Phase 3); null for single bookings. Deleting an itinerary keeps its bookings
+     * (and their flight sessions and rewards) as single bookings.
+     */
+    itineraryId: uuid("itinerary_id").references(() => itineraries.id, { onDelete: "set null" }),
+    legIndex: integer("leg_index"),
+    /**
+     * Final credited focus of the layover at this leg's destination (FR-043), set once the layover
+     * window has ended; null until then and for final legs and single bookings.
+     */
+    layoverFocusMs: bigint("layover_focus_ms", { mode: "number" }),
     createdAt: instant("created_at").notNull(),
   },
   (t) => [
     index("bookings_user_idx").on(t.userId, t.plannedDeparture),
     index("bookings_community_idx").on(t.communityKey),
+    uniqueIndex("bookings_itinerary_leg_uq").on(t.itineraryId, t.legIndex),
   ],
+);
+
+/** Layover focus events (FR-043): legIndex is the leg that landed at the layover airport. */
+export const layoverEvents = pgTable(
+  "layover_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    itineraryId: uuid("itinerary_id")
+      .notNull()
+      .references(() => itineraries.id, { onDelete: "cascade" }),
+    legIndex: integer("leg_index").notNull(),
+    type: text("type").$type<LayoverEventType>().notNull(),
+    at: instant("at").notNull(),
+  },
+  (t) => [index("layover_events_itinerary_idx").on(t.itineraryId, t.legIndex, t.at)],
 );
 
 export const flightSessions = pgTable(
@@ -200,6 +254,10 @@ export const travelMarks = pgTable(
     aircraftType: text("aircraft_type"),
     arrivalDate: text("arrival_date").notNull(),
     designId: text("design_id").notNull(),
+    /** Intermediate (layover) airport of an itinerary (FR-048, FR-049). */
+    isTransit: boolean("is_transit").notNull().default(false),
+    /** How many times the user had then reached this country, transit and final together (FR-050). */
+    visitNumber: integer("visit_number").notNull().default(1),
     createdAt: instant("created_at").notNull(),
   },
   (t) => [uniqueIndex("travel_marks_session_uq").on(t.sessionId), index("travel_marks_user_idx").on(t.userId)],

@@ -6,6 +6,11 @@ import type {
   FlightPlan,
   FlightState,
   InspectionPoint,
+  ItineraryMode,
+  ItineraryNotification,
+  ItineraryStatus,
+  LayoverPhase,
+  LoungeAccess,
   PublicFlightDescriptor,
   ScheduleSnapshot,
   SeatAssignment,
@@ -60,6 +65,9 @@ export interface Offer {
 
 export interface BoardingPass {
   bookingId: string;
+  /** Itinerary leg (Phase 3); null for single bookings. */
+  itineraryId: string | null;
+  legIndex: number | null;
   status: "booked" | "boarded" | "no_show" | "cancelled";
   mode: Offer["mode"];
   flightType: "community" | "individual";
@@ -136,6 +144,99 @@ export interface BookingRequest {
   drawToken?: string | null;
 }
 
+// Connecting flights (Phase 3)
+
+export interface ItineraryOfferLeg extends Offer {
+  legIndex: number;
+}
+
+export interface ItineraryOffer {
+  mode: ItineraryMode;
+  /** Pass back as chosenDeparture when booking an individual itinerary; null = depart now. */
+  chosenDeparture: number | null;
+  legs: ItineraryOfferLeg[];
+  layovers: { afterLegIndex: number; airport: AirportView; layoverMs: number; minimumConnectionMs: number; domestic: boolean }[];
+  departure: DisplayTime;
+  arrival: DisplayTime;
+  totalMs: number;
+  connections: number;
+  direct: boolean;
+  bookable: boolean;
+}
+
+export interface ItinerarySearchParams {
+  origin: string;
+  destination: string;
+  studyStart?: number;
+  studyEnd?: number;
+  mode?: ItineraryMode;
+  maxConnections?: 1 | 2;
+  limit?: number;
+  /** Guests only; signed-in users use their profile time zone. */
+  timeZone?: string;
+}
+
+export interface ItineraryRequest {
+  legs: { snapshotId: string; cabin: CabinClass }[];
+  mode: ItineraryMode;
+  chosenDeparture?: number | null;
+  studyWindow?: { start: number; end: number } | null;
+  studyGoal?: string | null;
+  breakSchedule?: BreakSchedule | null;
+  rebookedFromId?: string | null;
+}
+
+export interface LayoverView {
+  afterLegIndex: number;
+  nextBookingId: string;
+  airport: AirportView;
+  phase: LayoverPhase;
+  startsAt: DisplayTime;
+  departsAt: DisplayTime;
+  layoverMs: number;
+  deplaningEndsAt: DisplayTime;
+  boardingOpensAt: DisplayTime;
+  boardingClosesAt: DisplayTime;
+  msToBoardingOpen: number;
+  msToBoardingClose: number;
+  msToDeparture: number;
+  lounge: { access: LoungeAccess; premium: boolean };
+  focus: { focusing: boolean; focusMs: number; creditedMs: number; final: boolean; unattended: TimeSpan[]; window: TimeSpan } | null;
+}
+
+export interface LayoverResponse {
+  layover: LayoverView | null;
+  departures: {
+    snapshotId: string;
+    flightNumber: string;
+    airline: string;
+    destination: AirportView;
+    departure: DisplayTime;
+    yours: boolean;
+    dataSource: "verified" | "sample";
+  }[];
+  serverTime: number;
+}
+
+export interface Itinerary {
+  id: string;
+  mode: ItineraryMode;
+  status: ItineraryStatus;
+  origin: AirportView;
+  destination: AirportView;
+  currentAirport: AirportView;
+  rebookedFromId: string | null;
+  createdAt: number;
+  abandonedAt: number | null;
+  canAbandon: boolean;
+  departure: DisplayTime;
+  arrival: DisplayTime;
+  legs: { legIndex: number; bookingId: string; sessionId: string | null; outcome: SessionOutcome | null; creditedFocusMs: number | null; boardingPass: BoardingPass }[];
+  layovers: { afterLegIndex: number; airport: AirportView; publishedLayoverMs: number; layoverMs: number; lounge: LoungeAccess; creditedFocusMs: number | null }[];
+  layover: LayoverView | null;
+  notifications: ItineraryNotification[];
+}
+
 export interface ApiClientOptions {
   baseUrl: string;
   token?: string | null;
@@ -207,7 +308,7 @@ export class ApiClient {
     this.request<{ stats: unknown; level: unknown; next: unknown; unlocks: UnlockState }>("GET", "/v1/me/progression");
   stats = () => this.request<{ stats: UserStats }>("GET", "/v1/me/stats");
   history = (limit = 50) => this.request<{ flights: unknown[] }>("GET", "/v1/me/history", undefined, { limit });
-  passport = () => this.request<{ cover: string; marks: unknown[]; countries: { country: string; visits: number }[]; airports: unknown[] }>("GET", "/v1/me/passport");
+  passport = () => this.request<{ cover: string; marks: unknown[]; countries: { country: string; visits: number; transit: number; final: number }[]; airports: unknown[] }>("GET", "/v1/me/passport");
   achievements = () => this.request<{ achievements: unknown[] }>("GET", "/v1/me/achievements");
   importGuest = (records: unknown[]) =>
     this.request<{ imported: number; rejected: { snapshotId: string; departure: number; reason: string }[] }>("POST", "/v1/me/import-guest", { records });
@@ -225,6 +326,24 @@ export class ApiClient {
   booking = (id: string) => this.request<{ boardingPass: BoardingPass }>("GET", `/v1/bookings/${id}`);
   cancelBooking = (id: string) => this.request<{ ok: true }>("DELETE", `/v1/bookings/${id}`);
   board = (id: string) => this.request<{ sessionId: string }>("POST", `/v1/bookings/${id}/board`);
+
+  // Connecting flights (Phase 3). Legs are boarded with board(bookingId); flown with the session methods.
+  searchItineraries = (params: ItinerarySearchParams) =>
+    this.request<{ offers: ItineraryOffer[]; unlocks: UnlockState }>("GET", "/v1/itineraries/search", undefined, { ...params });
+  bookItinerary = (input: ItineraryRequest) => this.request<{ itinerary: Itinerary }>("POST", "/v1/itineraries", input);
+  /** Newest first. Pass the previous page's nextBefore as `before` to page back. */
+  itineraries = (params: { limit?: number; before?: number } = {}) =>
+    this.request<{ itineraries: Itinerary[]; nextBefore: number | null; serverTime: number }>("GET", "/v1/itineraries", undefined, { ...params });
+  itinerary = (id: string) => this.request<{ itinerary: Itinerary; serverTime: number }>("GET", `/v1/itineraries/${id}`);
+  abandonItinerary = (id: string) => this.request<{ itinerary: Itinerary; serverTime: number }>("POST", `/v1/itineraries/${id}/abandon`);
+  rebookOptions = (id: string, params: { mode?: ItineraryMode; maxConnections?: 1 | 2; limit?: number } = {}) =>
+    this.request<{ rebookedFromId: string; from: AirportView; to: AirportView; offers: ItineraryOffer[]; serverTime: number }>(
+      "GET", `/v1/itineraries/${id}/rebook`, undefined, params,
+    );
+  layover = (id: string) => this.request<LayoverResponse>("GET", `/v1/itineraries/${id}/layover`);
+  startLayoverFocus = (id: string) => this.request<LayoverResponse>("POST", `/v1/itineraries/${id}/layover/focus/start`);
+  stopLayoverFocus = (id: string) => this.request<LayoverResponse>("POST", `/v1/itineraries/${id}/layover/focus/stop`);
+  layoverHeartbeat = (id: string) => this.request<LayoverResponse>("POST", `/v1/itineraries/${id}/layover/heartbeat`);
 
   // Flight sessions
   activeSession = () => this.request<{ session: SessionResponse | null }>("GET", "/v1/sessions/active");
