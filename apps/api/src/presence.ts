@@ -10,9 +10,13 @@ import type { Clock } from "./context";
 export class GuestPresence {
   private readonly entries = new Map<string, Map<string, number>>();
 
-  constructor(private readonly clock: Clock) {}
+  /** maxPerFlight bounds memory: presence ids are client-generated and unauthenticated. */
+  constructor(
+    private readonly clock: Clock,
+    private readonly maxPerFlight = 5_000,
+  ) {}
 
-  /** Records presence; returns true when this guest was not already counted. */
+  /** Records presence. Returns false when the flight is at capacity and this id is new. */
   touch(communityKey: string, presenceId: string): boolean {
     this.prune();
     let flight = this.entries.get(communityKey);
@@ -20,9 +24,9 @@ export class GuestPresence {
       flight = new Map();
       this.entries.set(communityKey, flight);
     }
-    const isNew = !flight.has(presenceId);
+    if (!flight.has(presenceId) && flight.size >= this.maxPerFlight) return false;
     flight.set(presenceId, this.clock.now());
-    return isNew;
+    return true;
   }
 
   leave(communityKey: string, presenceId: string): void {

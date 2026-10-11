@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { invalidateCommunityCache } from "../src/context";
+import { publicFlights } from "../src/routes/community";
 import { createTestEnv, MIN, type TestEnv } from "./helpers";
 
 let env: TestEnv;
@@ -136,5 +138,42 @@ describe("Phase 2: personal globe and achievements", () => {
     expect(achievements.find((a: any) => a.id === "first_flight")).toMatchObject({ category: "milestone" });
     expect(achievements.find((a: any) => a.id === "first_flight").earnedAt).not.toBeNull();
     expect(achievements.find((a: any) => a.id === "dateline_crosser").earnedAt).toBeNull();
+  });
+});
+
+describe("community cache security", () => {
+  it("guest presence with fresh ids cannot force a reload on every request", async () => {
+    env = await createTestEnv();
+    const a = await env.register();
+    const offer = await offerFor(a, "mode=community&origin=SIN&destination=KUL", "TR450");
+    const pass = (await env.call("POST", "/v1/bookings", { token: a, body: { snapshotId: offer.snapshotId, mode: "community", cabin: "economy" } })).body.boardingPass;
+    env.clock.t = offer.departure.epochMs - 5 * MIN;
+    const id = (await env.call("POST", `/v1/bookings/${pass.bookingId}/board`, { token: a })).body.sessionId;
+    env.clock.t = offer.departure.epochMs + 5 * MIN;
+    await env.call("POST", `/v1/sessions/${id}/heartbeat`, { token: a, body: {} });
+    expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(1);
+
+    const key = (await env.call("GET", "/v1/community/flights")).body.flights[0].id;
+    for (let i = 0; i < 20; i++) {
+      await env.call("POST", "/v1/community/presence", { body: { communityKey: key, presenceId: crypto.randomUUID() } });
+    }
+    // Still served from cache within the TTL...
+    expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(1);
+    // ...and refreshed after it.
+    env.clock.t += 3_000;
+    expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(21);
+  });
+
+  it("a flight hidden while the map is loading never reappears from the cache (AC-16)", async () => {
+    env = await createTestEnv();
+    const stale = [{ id: "hidden", kind: "individual" as const, origin: { iata: "SIN", lat: 1, lon: 103 }, destination: { iata: "BKK", lat: 13, lon: 100 }, departure: 0, blockMs: 1 }];
+    let release!: () => void;
+    const slowLoad = () => new Promise<typeof stale>((resolve) => (release = () => resolve(stale)));
+    const pending = publicFlights(env.deps, env.clock.now(), slowLoad);
+    // The user hides their flight while the load is still running.
+    invalidateCommunityCache(env.deps);
+    release();
+    expect(await pending).toEqual(stale); // that one response may be stale…
+    expect(env.deps.communityCache).toBeNull(); // …but it is never cached for others
   });
 });

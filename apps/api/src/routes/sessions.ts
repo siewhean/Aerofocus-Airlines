@@ -20,7 +20,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { requireUser, type AppEnv } from "../auth";
-import type { AppDeps } from "../context";
+import { invalidateCommunityCache, type AppDeps } from "../context";
 import { flightSessions } from "../db/schema";
 import { ApiError, parseJson, parseQuery } from "../errors";
 import { finalizeIfDone, loadSession, saveSession, viewFor, type LoadedSession } from "../services/sessions";
@@ -88,7 +88,7 @@ export function sessionRoutes(deps: AppDeps) {
     const returning =
       action.type === "signal" && isUnattendedAt(loaded.data.signals, loaded.data.focusStart, deps.clock.now());
     if (returning || action.type === "set_visibility" || action.type === "exit" || action.type === "validate") {
-      deps.communityCache = null;
+      invalidateCommunityCache(deps);
     }
     return c.json(await respond(saved, tz, user.displayName));
   }

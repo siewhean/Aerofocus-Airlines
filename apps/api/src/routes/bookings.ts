@@ -12,7 +12,7 @@ import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { requireUser, type AppEnv } from "../auth";
-import type { AppDeps } from "../context";
+import { invalidateCommunityCache, type AppDeps } from "../context";
 import { attendanceSignals, bookings, flightSessions } from "../db/schema";
 import { ApiError, notFound, parseJson } from "../errors";
 import {
@@ -243,7 +243,7 @@ export function bookingRoutes(deps: AppDeps) {
       await tx.insert(attendanceSignals).values(s.signals.map((sig) => ({ sessionId: row!.id, kind: sig.kind, at: sig.at })));
       return row!.id;
     });
-    deps.communityCache = null;
+    invalidateCommunityCache(deps);
     return c.json({ sessionId }, 201);
   });
 

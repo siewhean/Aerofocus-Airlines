@@ -108,11 +108,19 @@ async function loadPublicFlights(deps: AppDeps, now: number): Promise<PublicFlig
   return flights;
 }
 
-async function publicFlights(deps: AppDeps, now: number): Promise<PublicFlightDescriptor[]> {
+/** Exported for tests; `load` is injectable to exercise slow loads. */
+export async function publicFlights(
+  deps: AppDeps,
+  now: number,
+  load: (deps: AppDeps, now: number) => Promise<PublicFlightDescriptor[]> = loadPublicFlights,
+): Promise<PublicFlightDescriptor[]> {
   const cached = deps.communityCache;
   if (cached && now - cached.at >= 0 && now - cached.at < CACHE_TTL_MS) return cached.flights;
-  const flights = await loadPublicFlights(deps, now);
-  deps.communityCache = { at: now, flights };
+  const generation = deps.communityCacheGeneration;
+  const flights = await load(deps, now);
+  // Only cache if nothing was invalidated while loading; otherwise a flight hidden mid-load
+  // could reappear from this stale result (AC-16).
+  if (deps.communityCacheGeneration === generation) deps.communityCache = { at: now, flights };
   return flights;
 }
 
@@ -205,10 +213,12 @@ export function communityRoutes(deps: AppDeps) {
     if (!snapshot || now > snapshot.arrival || now < snapshot.departure - 15 * 60_000) {
       throw new ApiError(409, "not_boarding", "This Community Flight is not boarding or flying");
     }
-    const changed = body.leaving
-      ? (deps.presence.leave(body.communityKey, body.presenceId), true)
-      : deps.presence.touch(body.communityKey, body.presenceId);
-    if (changed) deps.communityCache = null;
+    // Guest presence never invalidates the cache: anyone can send new ids, so invalidating here
+    // would let callers force a database load per request. Counts refresh within the cache TTL.
+    if (body.leaving) deps.presence.leave(body.communityKey, body.presenceId);
+    else if (!deps.presence.touch(body.communityKey, body.presenceId)) {
+      throw new ApiError(429, "flight_full", "Too many guests are being counted on this flight");
+    }
     return c.json({ passengerCount: deps.presence.count(body.communityKey) });
   });
 

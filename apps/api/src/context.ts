@@ -29,6 +29,14 @@ export interface AppDeps {
    * change, boarding or exit so hiding a flight takes effect immediately (AC-16).
    */
   communityCache: { at: number; flights: PublicFlightDescriptor[] } | null;
+  /** Bumped on every invalidation so an in-flight load cannot write back stale data. */
+  communityCacheGeneration: number;
+}
+
+/** Clears the community map cache, e.g. after a visibility change (AC-16). */
+export function invalidateCommunityCache(deps: AppDeps): void {
+  deps.communityCache = null;
+  deps.communityCacheGeneration++;
 }
 
 export interface BuildDepsInput {
@@ -56,5 +64,6 @@ export async function buildDeps(input: BuildDepsInput): Promise<AppDeps> {
     corsOrigins: input.corsOrigins ?? ["*"],
     random: input.random ?? Math.random,
     communityCache: null,
+    communityCacheGeneration: 0,
   };
 }
