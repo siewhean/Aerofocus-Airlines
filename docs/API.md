@@ -239,8 +239,13 @@ Guest presence ids are unauthenticated, so each client may have at most 3 ids co
 Community Flight, with caps of 5,000 ids per flight and 100,000 overall. Capacity never returns an
 error: the response is always 200, and `counted: false` means this id is not being counted (it is
 also `false` after `leaving`). Ids already counted keep refreshing; ids expire after 5 minutes
-without a ping, freeing the client's slots. Clients are identified by IP address, or by the first
-`X-Forwarded-For` address when the API runs with `TRUST_PROXY=true` (only behind a proxy that sets it).
+without a ping, freeing the client's slots. Clients are identified by the socket IP address. With
+`TRUST_PROXY=true` they are identified by the `X-Forwarded-For` entry `TRUST_PROXY_HOPS` (default 1)
+positions from the right, i.e. the address appended by our own proxy; entries further left are
+client-controlled and ignored. Enable `TRUST_PROXY` only behind a reverse proxy that appends the
+real client address, otherwise clients can choose their own identity. Addresses are normalised
+(ports, brackets, case, IPv4-mapped IPv6), and IPv6 clients are limited per /64 prefix, so all
+addresses in one /64 share the 3 ids.
 
 ## Guest mode
 

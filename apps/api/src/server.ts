@@ -1,7 +1,7 @@
 import { serve } from "@hono/node-server";
 import { SampleScheduleProvider } from "@aerofocus/data";
 import { createApp } from "./app";
-import { buildDeps } from "./context";
+import { buildDeps, parseTrustedHops } from "./context";
 import { connectFromEnv } from "./db/client";
 
 const port = Number(process.env.PORT ?? 8787);
@@ -18,6 +18,7 @@ const deps = await buildDeps({
   ...(process.env.SIGNING_SECRET ? { signingSecret: process.env.SIGNING_SECRET } : {}),
   corsOrigins: (process.env.CORS_ORIGINS ?? "*").split(",").map((s) => s.trim()),
   trustProxy: process.env.TRUST_PROXY === "true",
+  trustProxyHops: parseTrustedHops(process.env.TRUST_PROXY_HOPS),
 });
 
 const server = serve({ fetch: createApp(deps).fetch, port });

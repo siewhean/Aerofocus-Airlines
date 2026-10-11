@@ -16,6 +16,7 @@ import { getConnInfo } from "@hono/node-server/conninfo";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../auth";
+import { clientKeyFrom } from "../client-ip";
 import type { AppDeps } from "../context";
 import { attendanceSignals, bookings, flightSessions, scheduleSnapshots } from "../db/schema";
 import { ApiError, parseJson, parseQuery } from "../errors";
@@ -135,21 +136,24 @@ const bboxSchema = z
   .transform((v) => v as BBox);
 
 /**
- * Identifies a client for per-client limits: the first X-Forwarded-For address when the proxy is
- * trusted, otherwise the socket address via `getConnInfo` (exported by `@hono/node-server/conninfo`,
- * see its package.json "exports"). Requests without a Node socket (e.g. `app.request` in tests)
- * share the key "unknown".
+ * Identifies a client for per-client limits via `clientKeyFrom`: the X-Forwarded-For entry appended
+ * by the trusted proxy when enabled, otherwise the socket address via `getConnInfo` (exported by
+ * `@hono/node-server/conninfo`, see its package.json "exports"). Requests without a Node socket
+ * (e.g. `app.request` in tests) share the key "unknown".
  */
-function clientKey(c: Context<AppEnv>, trustProxy: boolean): string {
-  if (trustProxy) {
-    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-    if (forwarded) return forwarded;
-  }
+function clientKey(c: Context<AppEnv>, deps: AppDeps): string {
+  let remoteAddress: string | undefined;
   try {
-    return getConnInfo(c).remote.address ?? "unknown";
+    remoteAddress = getConnInfo(c).remote.address;
   } catch {
-    return "unknown";
+    remoteAddress = undefined;
   }
+  return clientKeyFrom({
+    forwardedFor: c.req.header("x-forwarded-for"),
+    remoteAddress,
+    trustProxy: deps.trustProxy,
+    trustedHops: deps.trustProxyHops,
+  });
 }
 
 export function communityRoutes(deps: AppDeps) {
@@ -240,7 +244,7 @@ export function communityRoutes(deps: AppDeps) {
     // would let callers force a database load per request. Counts refresh within the cache TTL.
     let counted = false;
     if (body.leaving) deps.presence.leave(body.communityKey, body.presenceId);
-    else counted = deps.presence.touch(body.communityKey, body.presenceId, clientKey(c, deps.trustProxy));
+    else counted = deps.presence.touch(body.communityKey, body.presenceId, clientKey(c, deps));
     return c.json({ passengerCount: deps.presence.count(body.communityKey), counted });
   });
 

@@ -23,10 +23,13 @@ export interface AppDeps {
   /** Allowed browser origins for CORS. */
   corsOrigins: string[];
   /**
-   * Identify clients by the first X-Forwarded-For address instead of the socket address. Enable
-   * only behind a reverse proxy that sets this header; otherwise clients can spoof it.
+   * Identify clients by the X-Forwarded-For entry appended by our own proxy instead of the socket
+   * address. Enable only behind a reverse proxy that appends the real client address; otherwise
+   * clients can spoof it.
    */
   trustProxy: boolean;
+  /** Number of trusted proxies; the client is the entry this many positions from the right (≥ 1). */
+  trustProxyHops: number;
   /** Source of randomness for seats and random flights; injectable for tests. */
   random: () => number;
   /**
@@ -51,6 +54,7 @@ export interface BuildDepsInput {
   signingSecret?: string;
   corsOrigins?: string[];
   trustProxy?: boolean;
+  trustProxyHops?: number;
   random?: () => number;
 }
 
@@ -69,8 +73,17 @@ export async function buildDeps(input: BuildDepsInput): Promise<AppDeps> {
     presence: new GuestPresence(clock),
     corsOrigins: input.corsOrigins ?? ["*"],
     trustProxy: input.trustProxy ?? false,
+    trustProxyHops: parseTrustedHops(input.trustProxyHops),
     random: input.random ?? Math.random,
     communityCache: null,
     communityCacheGeneration: 0,
   };
+}
+
+/** Validates the trusted proxy hop count: a positive integer, default 1. */
+export function parseTrustedHops(value: number | string | undefined): number {
+  if (value === undefined || value === "") return 1;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(n) || n < 1) throw new Error(`TRUST_PROXY_HOPS must be an integer >= 1, got ${String(value)}`);
+  return n;
 }
