@@ -1,4 +1,4 @@
-import type { TravelMarkDesign } from "@aerofocus/core";
+import type { PublicFlightDescriptor, TravelMarkDesign } from "@aerofocus/core";
 import { buildAirlineTierTable, ONE_WEEK_MS, TRAVEL_MARK_DESIGNS, type AirlineTierTable, type ScheduleProvider } from "@aerofocus/data";
 import { randomBytes } from "node:crypto";
 import type { Db } from "./db/client";
@@ -24,6 +24,11 @@ export interface AppDeps {
   corsOrigins: string[];
   /** Source of randomness for seats and random flights; injectable for tests. */
   random: () => number;
+  /**
+   * Short-lived cache of public flights for the community map (FR-062). Cleared on any visibility
+   * change, boarding or exit so hiding a flight takes effect immediately (AC-16).
+   */
+  communityCache: { at: number; flights: PublicFlightDescriptor[] } | null;
 }
 
 export interface BuildDepsInput {
@@ -50,5 +55,6 @@ export async function buildDeps(input: BuildDepsInput): Promise<AppDeps> {
     presence: new GuestPresence(clock),
     corsOrigins: input.corsOrigins ?? ["*"],
     random: input.random ?? Math.random,
+    communityCache: null,
   };
 }

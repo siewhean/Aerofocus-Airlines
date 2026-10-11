@@ -1,5 +1,19 @@
-import { blockDurationMs, createFlightPlan, inspectAtDistanceFraction, inspectAtOffset, MINUTE, unlockStateFor } from "@aerofocus/core";
-import { AIRPORTS_BY_IATA } from "@aerofocus/data";
+import {
+  blockDurationMs,
+  createFlightPlan,
+  daylightEventsDuringFlight,
+  displayTime,
+  inspectAtDistanceFraction,
+  inspectAtOffset,
+  MINUTE,
+  routeFacts,
+  routeGeometry,
+  routeTimeline,
+  unlockStateFor,
+  type InspectionPoint,
+} from "@aerofocus/core";
+import { describePosition } from "@aerofocus/geo";
+import { AIRPORTS, AIRPORTS_BY_IATA, SEAT_MAPS } from "@aerofocus/data";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../auth";
@@ -72,17 +86,29 @@ export function flightRoutes(deps: AppDeps) {
     return c.json(draw);
   });
 
-  /** Route geometry and phase plan for a flight, e.g. for previews and guest flights (FR-016). */
+  /**
+   * Route preview for a flight, e.g. before booking and for guest flights (FR-016): plan, GeoJSON,
+   * accessible timeline, sunrises/sunsets on the way, and route facts.
+   */
   app.get("/:snapshotId/plan", async (c) => {
     const snapshot = await snapshotOrThrow(deps, c.req.param("snapshotId"));
-    const { departure } = parseQuery(c, z.object({ departure: z.coerce.number().optional() }));
+    const { departure } = parseQuery(c, z.object({ departure: z.coerce.number().optional(), timeZone: z.string().optional() }));
+    const tz = await userTimeZone(c, deps);
     const plan = createFlightPlan({
       origin: airportOrThrow(snapshot.origin),
       destination: airportOrThrow(snapshot.destination),
       departure: departure ?? snapshot.departure,
       blockMs: blockDurationMs(snapshot),
     });
-    return c.json({ snapshot, plan });
+    return c.json({
+      snapshot,
+      plan,
+      geometry: routeGeometry(plan),
+      timeline: routeTimeline(plan, tz, { describe: (p) => describePosition(p, AIRPORTS) }),
+      daylightEvents: daylightEventsDuringFlight(plan).map((e) => ({ ...e, time: displayTime(e.instant, tz) })),
+      facts: routeFacts(plan),
+      seatMap: snapshot.aircraftType ? SEAT_MAPS[snapshot.aircraftType] ?? null : null,
+    });
   });
 
   /** Route inspection for a not-yet-flown flight (FR-017). */
@@ -104,8 +130,9 @@ export function flightRoutes(deps: AppDeps) {
       departure: q.departure ?? snapshot.departure,
       blockMs: blockDurationMs(snapshot),
     });
-    if (q.offsetMs !== undefined) return c.json({ point: inspectAtOffset(plan, q.offsetMs, tz) });
-    if (q.fraction !== undefined) return c.json({ point: inspectAtDistanceFraction(plan, q.fraction, tz) });
+    const labelled = (point: InspectionPoint) => c.json({ point: { ...point, placeLabel: describePosition(point.position, AIRPORTS) } });
+    if (q.offsetMs !== undefined) return labelled(inspectAtOffset(plan, q.offsetMs, tz));
+    if (q.fraction !== undefined) return labelled(inspectAtDistanceFraction(plan, q.fraction, tz));
     throw new ApiError(400, "invalid_request", "Pass offsetMs or fraction");
   });
 

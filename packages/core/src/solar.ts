@@ -4,11 +4,18 @@ import { DAY, MINUTE, type Instant } from "./time";
 const rad = (d: number): number => (d * Math.PI) / 180;
 const deg = (r: number): number => (r * 180) / Math.PI;
 
+export interface SunPosition {
+  /** Degrees above the horizon (negative below). */
+  elevationDeg: number;
+  /** Compass direction of the sun, degrees clockwise from north. */
+  azimuthDeg: number;
+}
+
 /**
- * Solar elevation angle in degrees at a position and instant (NOAA solar calculator equations,
- * without atmospheric refraction). Used for exterior daylight (FR-023).
+ * Sun position at a place and instant (NOAA solar calculator equations, without atmospheric
+ * refraction). Used for exterior daylight and window lighting (FR-023).
  */
-export function solarElevationDeg(instant: Instant, position: LatLon): number {
+export function sunPosition(instant: Instant, position: LatLon): SunPosition {
   const julianDay = instant / DAY + 2440587.5;
   const jc = (julianDay - 2451545) / 36525;
 
@@ -41,24 +48,41 @@ export function solarElevationDeg(instant: Instant, position: LatLon): number {
   const trueSolarTime = (((minutesUtc + eqTimeMinutes + 4 * position.lon) % 1440) + 1440) % 1440;
   const hourAngle = trueSolarTime / 4 < 0 ? trueSolarTime / 4 + 180 : trueSolarTime / 4 - 180;
 
+  const lat = rad(position.lat);
   const cosZenith =
-    Math.sin(rad(position.lat)) * Math.sin(rad(declination)) +
-    Math.cos(rad(position.lat)) * Math.cos(rad(declination)) * Math.cos(rad(hourAngle));
-  const zenith = deg(Math.acos(Math.min(1, Math.max(-1, cosZenith))));
-  return 90 - zenith;
+    Math.sin(lat) * Math.sin(rad(declination)) + Math.cos(lat) * Math.cos(rad(declination)) * Math.cos(rad(hourAngle));
+  const zenith = Math.acos(Math.min(1, Math.max(-1, cosZenith)));
+
+  const denom = Math.cos(lat) * Math.sin(zenith);
+  let azimuthDeg: number;
+  if (Math.abs(denom) < 1e-9) {
+    azimuthDeg = position.lat > 0 ? 180 : 0; // sun straight overhead, or observer at a pole
+  } else {
+    const cosAz = Math.min(1, Math.max(-1, (Math.sin(lat) * Math.cos(zenith) - Math.sin(rad(declination))) / denom));
+    const a = deg(Math.acos(cosAz));
+    azimuthDeg = hourAngle > 0 ? (a + 180) % 360 : (540 - a) % 360;
+  }
+  return { elevationDeg: 90 - deg(zenith), azimuthDeg };
+}
+
+export function solarElevationDeg(instant: Instant, position: LatLon): number {
+  return sunPosition(instant, position).elevationDeg;
 }
 
 export type DaylightCondition = "night" | "twilight" | "golden_hour" | "day";
 
 export interface Daylight {
   elevationDeg: number;
+  azimuthDeg: number;
   condition: DaylightCondition;
+}
+
+export function daylightConditionFor(elevationDeg: number): DaylightCondition {
+  return elevationDeg < -6 ? "night" : elevationDeg < 0 ? "twilight" : elevationDeg < 6 ? "golden_hour" : "day";
 }
 
 /** Sky condition at the aircraft's simulated position at the current real time (FR-023). */
 export function daylightAt(instant: Instant, position: LatLon): Daylight {
-  const elevationDeg = solarElevationDeg(instant, position);
-  const condition: DaylightCondition =
-    elevationDeg < -6 ? "night" : elevationDeg < 0 ? "twilight" : elevationDeg < 6 ? "golden_hour" : "day";
-  return { elevationDeg, condition };
+  const sun = sunPosition(instant, position);
+  return { ...sun, condition: daylightConditionFor(sun.elevationDeg) };
 }

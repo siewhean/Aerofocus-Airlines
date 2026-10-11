@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@aerofocus/core": "workspace:*",
-    "@aerofocus/data": "workspace:*"
+    "@aerofocus/data": "workspace:*",
+    "@aerofocus/geo": "workspace:*"
   }
 }

@@ -1,4 +1,6 @@
+import type { DepartureMode } from "./booking";
 import type { SessionOutcome } from "./outcome";
+import type { RouteFacts } from "./route-facts";
 import { addDaysToDate, localDate, type Instant } from "./time";
 
 /** Finalised flight leg, as stored in history (FR-052). */
@@ -16,6 +18,9 @@ export interface FlightRecord {
   airline: string;
   aircraftType: string | null;
   distanceKm: number;
+  /** Present for server-side records; used by route achievements. */
+  mode?: DepartureMode;
+  facts?: RouteFacts;
 }
 
 export interface UserStats {

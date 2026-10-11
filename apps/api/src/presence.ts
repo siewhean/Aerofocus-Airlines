@@ -12,13 +12,17 @@ export class GuestPresence {
 
   constructor(private readonly clock: Clock) {}
 
-  touch(communityKey: string, presenceId: string): void {
+  /** Records presence; returns true when this guest was not already counted. */
+  touch(communityKey: string, presenceId: string): boolean {
+    this.prune();
     let flight = this.entries.get(communityKey);
     if (!flight) {
       flight = new Map();
       this.entries.set(communityKey, flight);
     }
+    const isNew = !flight.has(presenceId);
     flight.set(presenceId, this.clock.now());
+    return isNew;
   }
 
   leave(communityKey: string, presenceId: string): void {

@@ -13,6 +13,7 @@ export * from "./airlines";
 export * from "./sample-schedule";
 export * from "./provider";
 export * from "./travel-marks";
+export * from "./seat-maps";
 
 export interface AirlineTierTable {
   tiers: ReadonlyMap<string, number>;

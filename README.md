@@ -3,7 +3,7 @@
 Study or work while virtually travelling the world, one realistically timed flight at a time.
 Product requirements: [plan.md](plan.md) (v4.1).
 
-This repository contains the Phase 1 back end and shared logic. **The UI is not included**; it is
+This repository contains the Phase 1 and Phase 2 back end and shared logic. **The UI is not included**; it is
 built separately on top of the packages and API below.
 
 ## Structure
@@ -11,6 +11,7 @@ built separately on top of the packages and API below.
 | Path | What it is |
 |---|---|
 | `packages/core` | Pure, deterministic domain logic shared by server, web UI and future mobile apps: time zones, flight phases, simulation and route inspection, sun position, focus/break timeline, attendance, outcomes and validation, booking rules, seats, unlocks, Random Flight, passport, stats, achievements, guest import. No I/O. |
+| `packages/geo` | Real-world geography for scenery: land/ocean/coast and country under the aircraft (Natural Earth 1:50m via world-atlas, public domain), place labels, simulated cloud cover. |
 | `packages/data` | Reference data (airports, airlines, aircraft), the `ScheduleProvider` interface and a **sample** timetable provider, airline unlock tiers. |
 | `packages/client` | Client library for the UI: typed API client, server clock sync, attendance reporter, device-only guest mode. |
 | `apps/api` | HTTP API (Hono) with PostgreSQL via Drizzle ORM. Runs on embedded PGlite when no database is configured. |
@@ -51,4 +52,8 @@ After changing `apps/api/src/db/schema.ts`, generate a migration with `pnpm db:g
   country designs are added to `packages/data/src/travel-marks.ts`.
 - Guest presence on Community Flights is held in memory, so it works for a single API instance only.
 - No rate limiting yet; add it at the edge or in the API before public launch.
-- Phase 2+ features (layovers and multi-leg itineraries, payments, native apps) are not built.
+- Seat maps are **representative** per aircraft type (`source: "representative"`), not any
+  airline's real configuration. Present them as typical layouts until verified maps are sourced.
+- Scenery knows land, ocean, coast and country only. Mountains and city lights need elevation and
+  population datasets that are not included yet. Clouds are simulated, never real weather.
+- Phase 3+ features (layovers and multi-leg itineraries, payments, native apps) are not built.
