@@ -1,0 +1,74 @@
+.hangar {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+.hangar-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+  max-height: 640px;
+  overflow: auto;
+}
+.hangar-item {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--s-3);
+  align-items: center;
+  text-align: left;
+  padding: var(--s-3) var(--s-2);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+.hangar-item:hover {
+  background: var(--bg-raised);
+}
+.hangar-item.is-active {
+  border-left-color: var(--accent);
+  background: var(--bg-raised);
+}
+.hangar-code {
+  grid-row: 1 / 3;
+  font-size: var(--fs-2);
+  color: var(--text-2);
+}
+.hangar-item.is-active .hangar-code {
+  color: var(--text);
+}
+.hangar-name {
+  font-weight: 600;
+}
+.hangar-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.hangar-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.hangar-cabin {
+  min-width: 180px;
+}
+.hangar-airline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+@media (max-width: 800px) {
+  .hangar {
+    grid-template-columns: 1fr;
+  }
+  .hangar-list {
+    max-height: 280px;
+  }
+}

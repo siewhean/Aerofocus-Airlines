@@ -1,0 +1,54 @@
+.dash-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.dash-title .code {
+  font-size: var(--fs-4);
+  color: var(--text-2);
+}
+.dash-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.dash-clock .numeral {
+  font-size: var(--fs-3);
+}
+.dash-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.dash-home {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  max-width: 560px;
+}
+.dash-home .field {
+  flex: 1 1 240px;
+}
+.dash-time {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dash-last {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .dash-actions .btn {
+    flex: 1 1 100%;
+  }
+  .dash-clock {
+    align-items: flex-start;
+  }
+}

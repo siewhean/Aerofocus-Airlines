@@ -1,0 +1,90 @@
+.ladder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 640px;
+}
+.ladder-step {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+  position: relative;
+}
+.ladder-step::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+.ladder-step:first-child::before {
+  top: 50%;
+}
+.ladder-step:last-child::before {
+  bottom: 50%;
+}
+.ladder-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  align-self: center;
+  z-index: 1;
+}
+.ladder-step.is-reached .ladder-dot {
+  background: var(--signal);
+  border-color: var(--signal);
+}
+.ladder-step.is-current .ladder-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ladder-step.is-ahead .ladder-text,
+.ladder-step.is-next .ladder-text {
+  color: var(--text-2);
+}
+.ladder-step.is-next .ladder-missing {
+  color: var(--text);
+}
+.ladder-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ladder-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.ladder-name {
+  font-weight: 600;
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.ladder-step.is-ahead .ladder-name {
+  color: var(--text-2);
+}
+
+.ach-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.ach-group h3 {
+  font-size: var(--fs-2);
+}
+.ach-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+  flex-wrap: wrap;
+}

@@ -1,0 +1,300 @@
+/* Boarding pass. The perforation is a dashed rule plus half-circle notches cut with masks on each half,
+   so the layout can switch from side-by-side (desktop) to stacked (mobile) without fixed sizes. */
+
+.pass-wrap {
+  filter: drop-shadow(0 1px 0 rgba(27, 34, 48, 0.06)) drop-shadow(0 14px 28px rgba(27, 34, 48, 0.18));
+  max-width: 920px;
+}
+
+.pass {
+  --notch: 11px;
+  --pass-pad: var(--s-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.pass-main,
+.pass-stub {
+  background: var(--ivory-raised);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Stacked: main on top, stub below. Notches sit on the shared horizontal edge. */
+.pass-main {
+  border-radius: var(--r-3) var(--r-3) 0 0;
+  -webkit-mask:
+    radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+    radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+    radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+  mask-composite: intersect;
+}
+.pass-stub {
+  border-radius: 0 0 var(--r-3) var(--r-3);
+  border-top: 2px dashed var(--ivory-line);
+  -webkit-mask:
+    radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+    radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+    radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+  mask-composite: intersect;
+}
+.pass-head-stub {
+  display: none;
+}
+
+.pass-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  background: var(--midnight);
+  color: var(--ivory);
+  padding: var(--s-3) var(--pass-pad);
+  min-height: 48px;
+}
+.pass-airline {
+  font-weight: 600;
+  font-size: var(--fs-2);
+  letter-spacing: -0.01em;
+}
+.pass-brand {
+  font-size: var(--fs-0);
+  color: color-mix(in srgb, var(--ivory) 72%, var(--midnight));
+  white-space: nowrap;
+}
+
+.pass-body {
+  padding: var(--pass-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.pass-route {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
+  align-items: start;
+  column-gap: var(--s-4);
+  row-gap: var(--s-2);
+}
+.pass-end {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.pass-iata {
+  font-size: var(--fs-6);
+  color: var(--ink);
+}
+.pass-city {
+  color: var(--slate);
+  font-size: var(--fs-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pass-plane {
+  color: var(--sky-deep);
+  align-self: start;
+  margin-top: 0.6em;
+}
+.pass-status {
+  justify-self: end;
+}
+
+.pass .facts {
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  gap: var(--s-4) var(--s-4);
+}
+.pass .fact dt {
+  color: var(--slate);
+}
+.pass .fact dd {
+  font-size: var(--fs-1);
+  color: var(--ink);
+}
+.pass .fact dd .code {
+  font-size: var(--fs-2);
+}
+.pass-seat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.pass-seat .code {
+  font-size: var(--fs-3);
+}
+
+.pass-goal {
+  max-width: none;
+  border-top: 1px solid var(--ivory-line);
+  padding-top: var(--s-3);
+}
+.pass-goal .muted {
+  color: var(--slate);
+  margin-right: var(--s-2);
+}
+
+.pass-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  color: var(--slate);
+}
+
+/* Stub */
+.pass-stub-body {
+  padding: var(--pass-pad);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-3) var(--s-5);
+  align-items: center;
+}
+.pass-stub-flight {
+  font-size: var(--fs-3);
+}
+.pass-stub-codes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-3);
+  justify-self: end;
+}
+.pass-stub-sep {
+  width: 18px;
+  height: 1px;
+  background: var(--sky-deep);
+}
+.pass-stub-facts {
+  margin: 0;
+  display: flex;
+  gap: var(--s-5);
+  grid-column: 1 / -1;
+}
+.pass-stub-facts dt {
+  font-size: var(--fs-0);
+  color: var(--slate);
+}
+.pass-stub-facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+/* Decorative flight strip: thin bars, not a barcode. */
+.pass-strip {
+  grid-column: 1 / -1;
+  height: 40px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--ink) 0 2px,
+    transparent 2px 5px,
+    var(--ink) 5px 6px,
+    transparent 6px 10px,
+    var(--ink) 10px 13px,
+    transparent 13px 15px,
+    var(--ink) 15px 16px,
+    transparent 16px 21px
+  );
+  opacity: 0.85;
+}
+
+/* Side by side from tablet up: stub on the right, notches on the shared vertical edge. */
+@media (min-width: 720px) {
+  .pass {
+    grid-template-columns: minmax(0, 1fr) 232px;
+  }
+  .pass-main {
+    border-radius: var(--r-3) 0 0 var(--r-3);
+    -webkit-mask:
+      radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    -webkit-mask-composite: source-in;
+    mask:
+      radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    mask-composite: intersect;
+  }
+  .pass-stub {
+    border-radius: 0 var(--r-3) var(--r-3) 0;
+    border-top: 0;
+    border-left: 2px dashed var(--ivory-line);
+    -webkit-mask:
+      radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    -webkit-mask-composite: source-in;
+    mask:
+      radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    mask-composite: intersect;
+  }
+  .pass-head-stub {
+    display: flex;
+  }
+  .pass-iata {
+    font-size: var(--fs-7);
+  }
+  .pass-stub-body {
+    grid-template-columns: 1fr;
+    align-content: start;
+    flex: 1;
+  }
+  .pass-stub-codes {
+    justify-self: start;
+  }
+  .pass-stub-facts {
+    flex-direction: column;
+    gap: var(--s-3);
+  }
+  .pass-strip {
+    margin-top: auto;
+    height: 56px;
+  }
+}
+
+/* Compact: main body only, smaller codes (dashboard rows, confirmations). */
+.is-compact .pass {
+  grid-template-columns: minmax(0, 1fr);
+  --pass-pad: var(--s-4);
+}
+.is-compact .pass-main {
+  border-radius: var(--r-3);
+  -webkit-mask: none;
+  mask: none;
+}
+.is-compact .pass-iata {
+  font-size: var(--fs-5);
+}
+.is-compact .pass-body {
+  gap: var(--s-4);
+}
+
+@media print {
+  .pass-wrap {
+    filter: none;
+    max-width: none;
+  }
+  .pass,
+  .pass-head,
+  .pass-strip {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .pass {
+    break-inside: avoid;
+  }
+  .pass-main,
+  .pass-stub {
+    border: 1px solid var(--ivory-line);
+  }
+}

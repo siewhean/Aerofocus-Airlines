@@ -1,0 +1,40 @@
+.tiers {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-6);
+  max-width: 860px;
+}
+.tier {
+  border-top: 2px solid var(--text);
+  padding-top: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.tier dt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tier-name {
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+.tier dd {
+  margin: 0;
+}
+.tier-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tier-list li {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .tiers {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,62 @@
+.dialog {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  max-width: min(92vw, 520px);
+  width: 100%;
+  color: var(--text);
+}
+.dialog-wide {
+  max-width: min(94vw, 820px);
+}
+.dialog::backdrop {
+  background: rgba(14, 26, 47, 0.55);
+  backdrop-filter: blur(2px);
+}
+.dialog-panel {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-pass);
+  overflow: hidden;
+}
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--line);
+}
+.dialog-header h2 {
+  font-size: var(--fs-3);
+}
+.dialog-body {
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5);
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+@media (max-width: 560px) {
+  .dialog {
+    max-width: 100vw;
+    margin: auto 0 0;
+  }
+  .dialog-panel {
+    border-radius: var(--r-3) var(--r-3) 0 0;
+  }
+  .dialog-footer {
+    flex-direction: column-reverse;
+  }
+  .dialog-footer .btn {
+    width: 100%;
+  }
+}

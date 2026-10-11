@@ -1,0 +1,85 @@
+.community-controls {
+  max-width: 420px;
+}
+.community-map {
+  position: relative;
+  height: calc(100dvh - 220px);
+  min-height: 360px;
+  width: 100%;
+}
+.community-map .canvas-map {
+  height: 100%;
+}
+
+.community-sheet {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  bottom: var(--s-4);
+  width: min(360px, calc(100% - 2 * var(--s-4)));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-pass);
+}
+.community-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.community-sheet-meta,
+.community-sheet-times {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: 0;
+  flex-wrap: wrap;
+}
+.community-sheet-meta {
+  font-weight: 600;
+}
+.community-sheet-times {
+  color: var(--text-2);
+  font-size: var(--fs-0);
+}
+.community-rule {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  background: var(--line);
+  flex: none;
+}
+
+@media (max-width: 900px) {
+  .community-sheet {
+    top: auto;
+    left: var(--s-3);
+    right: var(--s-3);
+    bottom: var(--s-3);
+    width: auto;
+    max-height: 70%;
+  }
+}
+@media (max-width: 400px) {
+  .community-map {
+    height: calc(100dvh - 260px);
+  }
+  .community-sheet {
+    padding: var(--s-3);
+  }
+}
+
+/* Phones: the flat map is about twice as wide as tall, so size the box to the map, not the viewport. */
+@media (max-width: 600px) {
+  .community-map {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 1.75;
+  }
+}
