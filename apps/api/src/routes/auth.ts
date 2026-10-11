@@ -15,6 +15,10 @@ const registerSchema = z.object({
   timeZone: timeZoneSchema,
 });
 
+let dummyHashPromise: Promise<string> | null = null;
+/** Hash of a random password, verified when the email is unknown so timing does not reveal accounts. */
+const dummyHash = (): Promise<string> => (dummyHashPromise ??= hashPassword(crypto.randomUUID()));
+
 const loginSchema = z.object({
   email: z.email().transform((e) => e.toLowerCase()),
   password: z.string().min(1).max(200),
@@ -45,8 +49,9 @@ export function authRoutes(deps: AppDeps) {
   app.post("/login", async (c) => {
     const body = await parseJson(c, loginSchema);
     const [user] = await deps.db.select().from(users).where(eq(users.email, body.email)).limit(1);
-    // Same response for unknown email and wrong password.
-    if (!user || !(await verifyPassword(body.password, user.passwordHash))) {
+    // Same response and similar timing for unknown email and wrong password: always run scrypt.
+    const valid = await verifyPassword(body.password, user?.passwordHash ?? (await dummyHash()));
+    if (!user || !valid) {
       throw new ApiError(401, "invalid_credentials", "Email or password is incorrect");
     }
     const token = await issueToken(deps, user.id);
