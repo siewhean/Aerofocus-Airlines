@@ -1,0 +1,13 @@
+{
+  "name": "@aerofocus/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@aerofocus/core": "workspace:*",
+    "@aerofocus/data": "workspace:*"
+  }
+}
