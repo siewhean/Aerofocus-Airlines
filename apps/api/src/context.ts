@@ -22,6 +22,11 @@ export interface AppDeps {
   presence: GuestPresence;
   /** Allowed browser origins for CORS. */
   corsOrigins: string[];
+  /**
+   * Identify clients by the first X-Forwarded-For address instead of the socket address. Enable
+   * only behind a reverse proxy that sets this header; otherwise clients can spoof it.
+   */
+  trustProxy: boolean;
   /** Source of randomness for seats and random flights; injectable for tests. */
   random: () => number;
   /**
@@ -45,6 +50,7 @@ export interface BuildDepsInput {
   clock?: Clock;
   signingSecret?: string;
   corsOrigins?: string[];
+  trustProxy?: boolean;
   random?: () => number;
 }
 
@@ -62,6 +68,7 @@ export async function buildDeps(input: BuildDepsInput): Promise<AppDeps> {
     signingSecret: input.signingSecret ? Buffer.from(input.signingSecret) : randomBytes(32),
     presence: new GuestPresence(clock),
     corsOrigins: input.corsOrigins ?? ["*"],
+    trustProxy: input.trustProxy ?? false,
     random: input.random ?? Math.random,
     communityCache: null,
     communityCacheGeneration: 0,

@@ -159,9 +159,9 @@ describe("community cache security", () => {
     }
     // Still served from cache within the TTL...
     expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(1);
-    // ...and refreshed after it.
+    // ...and refreshed after it; one client gets at most 3 guest ids counted.
     env.clock.t += 3_000;
-    expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(21);
+    expect((await env.call("GET", "/v1/community/flights")).body.flights[0].passengerCount).toBe(4);
   });
 
   it("a flight hidden while the map is loading never reappears from the cache (AC-16)", async () => {
@@ -175,5 +175,46 @@ describe("community cache security", () => {
     release();
     expect(await pending).toEqual(stale); // that one response may be stale…
     expect(env.deps.communityCache).toBeNull(); // …but it is never cached for others
+  });
+});
+
+describe("guest presence limits", () => {
+  async function flyingCommunityKey() {
+    const a = await env.register();
+    const offer = await offerFor(a, "mode=community&origin=SIN&destination=KUL", "TR450");
+    const pass = (await env.call("POST", "/v1/bookings", { token: a, body: { snapshotId: offer.snapshotId, mode: "community", cabin: "economy" } })).body.boardingPass;
+    env.clock.t = offer.departure.epochMs - 5 * MIN;
+    const id = (await env.call("POST", `/v1/bookings/${pass.bookingId}/board`, { token: a })).body.sessionId;
+    env.clock.t = offer.departure.epochMs + 5 * MIN;
+    await env.call("POST", `/v1/sessions/${id}/heartbeat`, { token: a, body: {} });
+    return (await env.call("GET", "/v1/community/flights")).body.flights[0].id as string;
+  }
+
+  it("one client can have only 3 ids counted per flight and is never rejected", async () => {
+    env = await createTestEnv();
+    const key = await flyingCommunityKey();
+    const ids = Array.from({ length: 50 }, () => crypto.randomUUID());
+    const results = [];
+    for (const presenceId of ids) results.push(await env.call("POST", "/v1/community/presence", { body: { communityKey: key, presenceId } }));
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect(results.map((r) => r.body.counted)).toEqual([true, true, true, ...Array(47).fill(false)]);
+    expect(results.at(-1)!.body.passengerCount).toBe(3);
+
+    // Ids already counted keep refreshing normally.
+    const again = await env.call("POST", "/v1/community/presence", { body: { communityKey: key, presenceId: ids[0] } });
+    expect(again.body).toEqual({ passengerCount: 3, counted: true });
+  });
+
+  it("expired ids free the client's slots", async () => {
+    env = await createTestEnv();
+    const key = await flyingCommunityKey();
+    for (let i = 0; i < 5; i++) await env.call("POST", "/v1/community/presence", { body: { communityKey: key, presenceId: crypto.randomUUID() } });
+    const blocked = await env.call("POST", "/v1/community/presence", { body: { communityKey: key, presenceId: crypto.randomUUID() } });
+    expect(blocked.body).toEqual({ passengerCount: 3, counted: false });
+
+    env.clock.t += 5 * MIN + 1_000; // past the unattended threshold without a ping
+    const fresh = await env.call("POST", "/v1/community/presence", { body: { communityKey: key, presenceId: crypto.randomUUID() } });
+    expect(fresh.status).toBe(200);
+    expect(fresh.body).toEqual({ passengerCount: 1, counted: true });
   });
 });

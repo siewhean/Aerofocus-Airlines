@@ -12,7 +12,8 @@ import {
   type PublicFlightDescriptor,
 } from "@aerofocus/core";
 import { and, eq, gt, inArray, isNull, lte } from "drizzle-orm";
-import { Hono } from "hono";
+import { getConnInfo } from "@hono/node-server/conninfo";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../auth";
 import type { AppDeps } from "../context";
@@ -133,6 +134,24 @@ const bboxSchema = z
   )
   .transform((v) => v as BBox);
 
+/**
+ * Identifies a client for per-client limits: the first X-Forwarded-For address when the proxy is
+ * trusted, otherwise the socket address via `getConnInfo` (exported by `@hono/node-server/conninfo`,
+ * see its package.json "exports"). Requests without a Node socket (e.g. `app.request` in tests)
+ * share the key "unknown".
+ */
+function clientKey(c: Context<AppEnv>, trustProxy: boolean): string {
+  if (trustProxy) {
+    const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+    if (forwarded) return forwarded;
+  }
+  try {
+    return getConnInfo(c).remote.address ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 export function communityRoutes(deps: AppDeps) {
   const app = new Hono<AppEnv>();
 
@@ -202,7 +221,11 @@ export function communityRoutes(deps: AppDeps) {
     });
   });
 
-  /** Anonymous guest presence on a Community Flight; nothing is stored (FR-069). Send every minute. */
+  /**
+   * Anonymous guest presence on a Community Flight; nothing is stored (FR-069). Send every minute.
+   * Capacity is never an error: `counted: false` means this id is not being counted (the client's
+   * per-flight limit or a cap is reached), and the guest's own flight carries on regardless.
+   */
   app.post("/presence", async (c) => {
     const body = await parseJson(
       c,
@@ -215,11 +238,10 @@ export function communityRoutes(deps: AppDeps) {
     }
     // Guest presence never invalidates the cache: anyone can send new ids, so invalidating here
     // would let callers force a database load per request. Counts refresh within the cache TTL.
+    let counted = false;
     if (body.leaving) deps.presence.leave(body.communityKey, body.presenceId);
-    else if (!deps.presence.touch(body.communityKey, body.presenceId)) {
-      throw new ApiError(429, "flight_full", "Too many guests are being counted on this flight");
-    }
-    return c.json({ passengerCount: deps.presence.count(body.communityKey) });
+    else counted = deps.presence.touch(body.communityKey, body.presenceId, clientKey(c, deps.trustProxy));
+    return c.json({ passengerCount: deps.presence.count(body.communityKey), counted });
   });
 
   return app;

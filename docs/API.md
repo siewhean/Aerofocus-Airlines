@@ -228,12 +228,19 @@ Simulated distance and flying hours are not physical travel (FR-054).
 | GET | `/v1/community/flights?zoom=&bbox=west,south,east,north` | clustered: `{ items, total, serverTime }`; each item is `{ type: "flight", position, flight }` or `{ type: "cluster", position, count, sampleIds }` (FR-062) |
 | GET | `/v1/community/flights/public/:id` | anonymous inspection: descriptor, position and route path only (FR-056) |
 | GET | `/v1/community/flights/:key` | passenger count for one Community Flight |
-| POST | `/v1/community/presence` | guests: `{ communityKey, presenceId (uuid), leaving? }` every minute |
+| POST | `/v1/community/presence` | guests: `{ communityKey, presenceId (uuid), leaving? }` every minute → `{ passengerCount, counted }` |
 
 A descriptor contains only `id`, `kind` (`individual` | `community`), `origin`, `destination`,
 `departure`, `blockMs` and, for Community Flights, `passengerCount`. Compute positions in the
 browser with `publicFlightPosition(descriptor, now)`; the server does not stream positions. Hiding
 other flights is a UI setting (`showCommunityFlights`); it must not affect the user's own flight.
+
+Guest presence ids are unauthenticated, so each client may have at most 3 ids counted per
+Community Flight, with caps of 5,000 ids per flight and 100,000 overall. Capacity never returns an
+error: the response is always 200, and `counted: false` means this id is not being counted (it is
+also `false` after `leaving`). Ids already counted keep refreshing; ids expire after 5 minutes
+without a ping, freeing the client's slots. Clients are identified by IP address, or by the first
+`X-Forwarded-For` address when the API runs with `TRUST_PROXY=true` (only behind a proxy that sets it).
 
 ## Guest mode
 

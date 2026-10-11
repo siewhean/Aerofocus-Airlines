@@ -17,6 +17,7 @@ const deps = await buildDeps({
   provider: new SampleScheduleProvider(),
   ...(process.env.SIGNING_SECRET ? { signingSecret: process.env.SIGNING_SECRET } : {}),
   corsOrigins: (process.env.CORS_ORIGINS ?? "*").split(",").map((s) => s.trim()),
+  trustProxy: process.env.TRUST_PROXY === "true",
 });
 
 const server = serve({ fetch: createApp(deps).fetch, port });
