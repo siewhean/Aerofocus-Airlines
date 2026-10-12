@@ -6,7 +6,7 @@
  */
 import type { Itinerary, ItineraryOffer } from "@aerofocus/client";
 import { itineraryPlannedTimes, type CabinClass, type ItineraryLegPlan, type ItineraryMode, type ItineraryNotification, type ScheduleSnapshot } from "@aerofocus/core";
-import { api, ApiRequestError } from "./api";
+import { api, ApiRequestError, isUuid } from "./api";
 import { formatClock } from "./format";
 import { notify, type Channel } from "./notify";
 
@@ -41,6 +41,7 @@ export function rememberedOpenItinerary(): string | null {
 }
 
 export async function loadItinerary(id: string): Promise<Itinerary | null> {
+  if (!isUuid(id)) return null;
   try {
     return (await api.itinerary(id)).itinerary;
   } catch (e) {

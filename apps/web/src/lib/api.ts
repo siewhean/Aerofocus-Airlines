@@ -57,6 +57,11 @@ export function errorMessage(err: unknown): string {
   return "Something went wrong.";
 }
 
+/** Route params are interpolated into API paths by the client library; only UUIDs may pass. */
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function errorCode(err: unknown): string | null {
   return err instanceof ApiRequestError ? err.code : null;
 }

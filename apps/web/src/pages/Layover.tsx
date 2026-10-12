@@ -29,6 +29,7 @@ import {
 import { useSession } from "../lib/session";
 import { setTheme } from "../lib/theme";
 import { Badge, Button, Empty, Icon, Notice, Skeleton } from "../ui";
+import { isUuid } from "../lib/api";
 import "./Layover.css";
 
 const LAYOVER_POLL_MS = 30_000;
@@ -57,7 +58,9 @@ function rememberIfOpen(it: Itinerary): void {
 }
 
 export default function Layover() {
-  const { id = "" } = useParams();
+  const { id: rawId = "" } = useParams();
+  // The id is interpolated into API paths by the client library; anything but a UUID is "not found".
+  const id = isUuid(rawId) ? rawId : "";
   const session = useSession();
   const sessionRef = useRef(session);
   sessionRef.current = session;
@@ -91,6 +94,7 @@ export default function Layover() {
   }, [id]);
 
   const loadLayover = useCallback(async () => {
+    if (!id) return null;
     const res = await api.layover(id);
     setData(res);
     setError(null);

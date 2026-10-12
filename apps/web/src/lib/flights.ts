@@ -16,7 +16,7 @@ import {
   type ScheduleSnapshot,
 } from "@aerofocus/core";
 import { AIRCRAFT_BY_CODE, AIRLINES_BY_IATA, AIRPORTS_BY_IATA } from "@aerofocus/data";
-import { api, ApiRequestError } from "./api";
+import { api, ApiRequestError, isUuid } from "./api";
 import { apiExt } from "./api-ext";
 import type { SessionContextValue } from "./session";
 
@@ -167,6 +167,7 @@ export async function listBookings(session: SessionContextValue): Promise<Boardi
 
 export async function getBooking(session: SessionContextValue, bookingId: string): Promise<BoardingPass | null> {
   if (session.mode === "user") {
+    if (!isUuid(bookingId)) return null;
     try {
       return (await api.booking(bookingId)).boardingPass;
     } catch (e) {
@@ -179,6 +180,7 @@ export async function getBooking(session: SessionContextValue, bookingId: string
 
 export async function cancelBooking(session: SessionContextValue, bookingId: string): Promise<void> {
   if (session.mode === "user") {
+    if (!isUuid(bookingId)) throw new BookingError("not_found", "Booking not found.");
     await api.cancelBooking(bookingId);
     return;
   }
@@ -198,6 +200,7 @@ export async function cancelBooking(session: SessionContextValue, bookingId: str
 /** Boards. Returns the session id ("guest" for guests). Throws BookingError with too_early / no_show / already_boarded. */
 export async function boardBooking(session: SessionContextValue, bookingId: string): Promise<string> {
   if (session.mode === "user") {
+    if (!isUuid(bookingId)) throw new BookingError("not_found", "Booking not found.");
     try {
       return (await api.board(bookingId)).sessionId;
     } catch (e) {
