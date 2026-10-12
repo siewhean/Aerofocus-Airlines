@@ -9,7 +9,7 @@ import { api, ApiRequestError, clock, storeToken } from "./api";
 import { apiExt, type RulesResponse, type SettingsView, type UserView } from "./api-ext";
 import { browserTimeZone } from "./format";
 import { DEFAULT_PREFS, loadLocalPrefs, mergePrefs, saveLocalPrefs, type UiPreferences } from "./prefs";
-import { setInterfaceBrightness } from "./theme";
+import { applyAppearance, setInterfaceBrightness } from "./theme";
 
 export interface SessionContextValue {
   ready: boolean;
@@ -115,6 +115,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setInterfaceBrightness(prefs.lighting.interfaceBrightness);
   }, [prefs.lighting.interfaceBrightness]);
+
+  useEffect(() => {
+    applyAppearance(prefs.appearance);
+  }, [prefs.appearance]);
 
   const updatePrefs = useCallback(
     (patch: Partial<UiPreferences>) => {

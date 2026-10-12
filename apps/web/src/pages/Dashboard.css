@@ -38,6 +38,47 @@
   flex-direction: column;
   gap: 2px;
 }
+/* A notice in the flow, not a card: a left rule, no box (Phase 8). */
+.dash-journey {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-1) 0 var(--s-1) var(--s-4);
+  border-left: 3px solid var(--geo);
+}
+.dash-journey-codes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.dash-journey-node {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.dash-journey-node .code {
+  font-size: var(--fs-4);
+}
+.dash-journey-plane {
+  color: var(--geo);
+}
+.dash-journey-step {
+  margin: 0;
+  max-width: none;
+}
+.dash-journey-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.dash-flight {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
 .dash-last {
   display: flex;
   gap: var(--s-3);
@@ -51,4 +92,22 @@
   .dash-clock {
     align-items: flex-start;
   }
+}
+
+/* Phase 8: a flight-information display, not a dashboard. */
+.dash-flying {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s-4);
+}
+.dash-flying-line {
+  max-width: var(--measure);
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.dash-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
 }

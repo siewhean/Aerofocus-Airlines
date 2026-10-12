@@ -20,7 +20,7 @@
   height: 100%;
 }
 
-/* The frame is the cabin wall: dark, slightly warm, with the personal reading light. */
+/* The frame is the window reveal: dark, slightly warm, with the personal reading light. */
 .window-frame {
   width: 100%;
   aspect-ratio: 3 / 4;
@@ -49,14 +49,38 @@
   background: radial-gradient(60% 40% at 50% 110%, rgba(255, 220, 160, 0.35), transparent 70%);
   pointer-events: none;
 }
+/* Inside a CabinFrame the wall and the lamp belong to the frame; the reveal is thinner and unlit. */
+.cabin-frame .window-frame {
+  padding: 4.5%;
+  border-radius: var(--r-window);
+  background: linear-gradient(180deg, #0f1420, #0a0e18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.cabin-frame .has-reading-light .window-frame::after {
+  content: none;
+}
+.cabin-frame .window-panel,
+.cabin-frame .window-mini {
+  max-width: none;
+}
+.cabin-frame .window-caption {
+  color: rgba(255, 255, 255, 0.68);
+}
+.cabin-frame .window-caption span + span::before {
+  background: rgba(255, 255, 255, 0.25);
+}
 
 .window-glass {
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: calc(var(--r-window));
+  border-radius: var(--r-window);
   overflow: hidden;
-  filter: brightness(calc(0.55 + var(--ext-brightness) * 0.45));
+  /* Exterior light, dimmed further when the aircraft is inside or under cloud. */
+  filter: brightness(calc((0.55 + var(--ext-brightness) * 0.45) * (1 - var(--cloud-wash, 0) * 0.3)));
   transform: rotate(var(--tilt));
   transition: filter var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
   box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.06), inset 0 0 40px rgba(0, 0, 0, 0.35);
@@ -115,6 +139,109 @@
     repeating-linear-gradient(170deg, transparent 0 14px, rgba(0, 0, 0, 0.08) 14px 16px),
     var(--sky-ground);
 }
+
+/* Terrain below the horizon, by surface. Night keeps the dark ground from .sky showing through. */
+.terrain {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--horizon-y);
+  bottom: 0;
+  opacity: calc(0.25 + var(--ext-brightness) * 0.7);
+  transition: opacity var(--t-slow) var(--ease), top var(--t-slow) var(--ease);
+}
+.terrain-ocean {
+  background:
+    repeating-linear-gradient(178deg, transparent 0 7px, rgba(255, 255, 255, 0.045) 7px 8px, transparent 8px 13px),
+    linear-gradient(180deg, rgb(78 132 158) 0%, rgb(34 86 118) 18%, rgb(18 58 92) 60%, rgb(12 44 74) 100%);
+}
+.terrain-land {
+  background:
+    radial-gradient(120% 60% at 30% 35%, rgba(176, 164, 108, 0.35), transparent 60%),
+    radial-gradient(90% 50% at 72% 70%, rgba(84, 98, 62, 0.45), transparent 65%),
+    linear-gradient(180deg, rgb(146 142 104) 0%, rgb(110 116 78) 25%, rgb(92 100 66) 100%);
+}
+.terrain-coast {
+  background:
+    linear-gradient(180deg, rgba(222, 214, 184, 0.75) 0%, rgba(222, 214, 184, 0.25) 6%, transparent 14%),
+    radial-gradient(120% 60% at 30% 35%, rgba(176, 164, 108, 0.35), transparent 60%),
+    radial-gradient(90% 50% at 72% 70%, rgba(84, 98, 62, 0.45), transparent 65%),
+    linear-gradient(180deg, rgb(146 142 104) 0%, rgb(110 116 78) 25%, rgb(92 100 66) 100%);
+}
+/* Low altitude: more detail. Fields on land, stronger wave striations over water. */
+.is-low .terrain-land,
+.is-low .terrain-coast {
+  background-image:
+    repeating-linear-gradient(100deg, transparent 0 22px, rgba(0, 0, 0, 0.07) 22px 23px),
+    repeating-linear-gradient(8deg, transparent 0 34px, rgba(255, 255, 255, 0.05) 34px 35px),
+    radial-gradient(120% 60% at 30% 35%, rgba(176, 164, 108, 0.35), transparent 60%),
+    radial-gradient(90% 50% at 72% 70%, rgba(84, 98, 62, 0.45), transparent 65%),
+    linear-gradient(180deg, rgb(146 142 104) 0%, rgb(110 116 78) 25%, rgb(92 100 66) 100%);
+}
+.is-low .terrain-ocean {
+  background-image:
+    repeating-linear-gradient(178deg, transparent 0 5px, rgba(255, 255, 255, 0.07) 5px 6px, transparent 6px 10px),
+    linear-gradient(180deg, rgb(78 132 158) 0%, rgb(34 86 118) 18%, rgb(18 58 92) 60%, rgb(12 44 74) 100%);
+}
+/* On the ground the terrain is the airfield grass; the apron and runway sit on top. */
+.is-ground .terrain {
+  opacity: calc(0.15 + var(--ext-brightness) * 0.45);
+}
+/* Cruise haze: everything below the horizon softens into the sky colour. */
+.haze {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--horizon-y) - 2%);
+  bottom: 0;
+  opacity: calc(var(--haze, 0) * (0.3 + var(--ext-brightness) * 0.7));
+  background: linear-gradient(180deg, var(--sky-horizon) 0%, color-mix(in srgb, var(--sky-horizon) 60%, transparent) 30%, color-mix(in srgb, var(--sky-horizon) 25%, transparent) 100%);
+  transition: opacity var(--t-slow) var(--ease);
+}
+
+/* City lights at night over land: a static scatter of warm points along the horizon band. */
+.city-lights {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--horizon-y) + 0.5%);
+  height: 9%;
+  opacity: var(--city-lights, 0);
+  background-image:
+    radial-gradient(1px 1px at 6% 20%, rgba(255, 214, 150, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 11% 35%, rgba(255, 200, 130, 0.8) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 17% 18%, rgba(255, 226, 170, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 21% 48%, rgba(255, 190, 120, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 27% 26%, rgba(255, 214, 150, 0.85) 50%, transparent 51%),
+    radial-gradient(1px 1px at 31% 12%, rgba(255, 214, 150, 0.6) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 38% 30%, rgba(255, 226, 170, 0.95) 50%, transparent 51%),
+    radial-gradient(1px 1px at 42% 55%, rgba(255, 190, 120, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 47% 22%, rgba(255, 214, 150, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 53% 40%, rgba(255, 200, 130, 0.8) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 58% 16%, rgba(255, 226, 170, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 63% 33%, rgba(255, 214, 150, 0.75) 50%, transparent 51%),
+    radial-gradient(1px 1px at 69% 50%, rgba(255, 190, 120, 0.65) 50%, transparent 51%),
+    radial-gradient(1px 1px at 74% 24%, rgba(255, 214, 150, 0.85) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 80% 14%, rgba(255, 226, 170, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 85% 38%, rgba(255, 200, 130, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 91% 20%, rgba(255, 214, 150, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 96% 45%, rgba(255, 190, 120, 0.6) 50%, transparent 51%),
+    linear-gradient(180deg, rgba(255, 200, 140, 0.08), transparent 70%);
+  transition: opacity var(--t-slow) var(--ease);
+}
+
+/* Airfield: apron concrete and the runway edge, on the ground only. */
+.apron {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--horizon-y) + 3%);
+  height: 9%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 26px, rgba(0, 0, 0, 0.06) 26px 27px),
+    linear-gradient(180deg, rgba(120, 122, 128, 0.85), rgba(96, 98, 104, 0.9));
+  opacity: calc(0.4 + var(--ext-brightness) * 0.5);
+}
 .runway {
   position: absolute;
   left: 20%;
@@ -123,6 +250,33 @@
   height: 3px;
   background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.6) 0 12px, transparent 12px 24px);
   opacity: 0.6;
+}
+
+/* Cloud tops seen from above: broken leaves gaps, overcast is a solid floor. */
+.undercast {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: calc(var(--horizon-y) - 3%);
+  bottom: 0;
+  opacity: calc(0.5 + var(--ext-brightness) * 0.5);
+  background-image:
+    radial-gradient(ellipse 22% 30% at 12% 20%, rgba(248, 250, 252, 0.95), transparent 70%),
+    radial-gradient(ellipse 30% 34% at 38% 28%, rgba(240, 244, 248, 0.92), transparent 70%),
+    radial-gradient(ellipse 26% 30% at 66% 18%, rgba(248, 250, 252, 0.95), transparent 70%),
+    radial-gradient(ellipse 24% 28% at 90% 30%, rgba(240, 244, 248, 0.9), transparent 70%),
+    radial-gradient(ellipse 34% 40% at 24% 62%, rgba(236, 240, 246, 0.9), transparent 70%),
+    radial-gradient(ellipse 36% 42% at 58% 70%, rgba(236, 240, 246, 0.92), transparent 70%),
+    radial-gradient(ellipse 30% 36% at 86% 66%, rgba(236, 240, 246, 0.9), transparent 70%),
+    linear-gradient(180deg, rgba(232, 238, 244, 0.55) 0%, rgba(214, 222, 230, 0.6) 100%);
+  transition: opacity var(--t-slow) var(--ease);
+}
+.undercast.is-solid {
+  background-image:
+    radial-gradient(ellipse 30% 30% at 20% 22%, rgba(250, 252, 254, 0.9), transparent 70%),
+    radial-gradient(ellipse 34% 32% at 60% 30%, rgba(246, 248, 252, 0.85), transparent 70%),
+    radial-gradient(ellipse 30% 30% at 90% 24%, rgba(250, 252, 254, 0.9), transparent 70%),
+    linear-gradient(180deg, rgb(236 240 246) 0%, rgb(218 224 232) 45%, rgb(204 210 220) 100%);
 }
 
 .cloud-layer {
@@ -162,6 +316,18 @@
     animation: none;
   }
 }
+/* Inside a broken layer the view washes white; under an overcast it greys. */
+.cloud-wash {
+  position: absolute;
+  inset: 0;
+  opacity: var(--cloud-wash, 0);
+  background: linear-gradient(180deg, rgba(226, 230, 236, 0.95), rgba(208, 214, 222, 0.9));
+  pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease);
+}
+[data-cloud="wash"] .cloud-wash {
+  background: linear-gradient(180deg, rgba(150, 158, 170, 0.85) 0%, rgba(176, 182, 192, 0.55) 45%, rgba(176, 182, 192, 0.2) 100%);
+}
 
 .wing {
   position: absolute;
@@ -180,6 +346,37 @@
 }
 .wing .winglet {
   fill: #b5b9c2;
+}
+
+/* Contrail: a thin fading line streaming from the winglet, cruise in daylight only. */
+.contrail {
+  position: absolute;
+  left: 92%;
+  bottom: calc(2% + 34% * 0.78);
+  width: 40%;
+  height: 2px;
+  transform-origin: 0 50%;
+  transform: rotate(-6deg);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.35) 40%, transparent);
+  filter: blur(0.6px);
+  opacity: calc(var(--contrail, 0) * var(--ext-brightness));
+  pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease);
+}
+
+/* Frost at the edges of the outer pane at cruise, very faint and static. */
+.frost {
+  position: absolute;
+  inset: 0;
+  opacity: var(--frost, 0);
+  background:
+    radial-gradient(60% 50% at 0% 0%, rgba(255, 255, 255, 0.16), transparent 60%),
+    radial-gradient(55% 45% at 100% 0%, rgba(255, 255, 255, 0.12), transparent 60%),
+    radial-gradient(50% 40% at 0% 100%, rgba(255, 255, 255, 0.1), transparent 60%),
+    radial-gradient(50% 40% at 100% 100%, rgba(255, 255, 255, 0.1), transparent 60%);
+  box-shadow: inset 0 0 28px 6px rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+  transition: opacity var(--t-slow) var(--ease);
 }
 
 .reflection {

@@ -291,6 +291,18 @@ export default function Settings() {
           </Field>
         </Section>
 
+        <Section title="Appearance">
+          <Field label="Dark mode" hint="System follows your device. The cabin is always night-lit.">
+            {(id, describedBy) => (
+              <Select id={id} aria-describedby={describedBy} value={prefs.appearance} onChange={(e) => setPrefs({ appearance: e.target.value as UiPreferences["appearance"] })}>
+                <option value="system">Follow the system</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </Select>
+            )}
+          </Field>
+        </Section>
+
         <Section title="Graphics">
           <Field label="Graphics quality" hint="Auto follows your device and battery.">
             {(id, describedBy) => (

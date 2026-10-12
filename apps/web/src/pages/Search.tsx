@@ -1,8 +1,9 @@
-import type { AirportView, Offer } from "@aerofocus/client";
+import type { AirportView, ItineraryOffer, Offer } from "@aerofocus/client";
 import { localParts, zonedToInstant, MINUTE, HOUR, type CabinClass } from "@aerofocus/core";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Page } from "../app/Shell";
+import { ItineraryOffersBoard } from "../components/JourneyChain";
 import { FlightIdent, RouteCodes } from "../components/RouteCodes";
 import { api, errorMessage } from "../lib/api";
 import { formatClock, formatDuration, formatRelativeDay, cabinLabel } from "../lib/format";
@@ -12,7 +13,14 @@ import "./Search.css";
 
 const CABINS: CabinClass[] = ["economy", "premium_economy", "business", "first"];
 type DepartureType = "all" | "community" | "individual";
+type Connections = 0 | 1 | 2;
 const RESULT_LIMIT = 50;
+/** Itinerary offers sort by total time, so direct flights fill a small limit first (docs/API.md). */
+const ITINERARY_LIMIT = 60;
+
+function parseConnections(value: string | null): Connections {
+  return value === "1" ? 1 : value === "2" ? 2 : 0;
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -51,6 +59,7 @@ interface Draft {
   to: string;
   cabin: CabinClass;
   type: DepartureType;
+  conn: Connections;
 }
 
 export default function Search() {
@@ -72,6 +81,7 @@ export default function Search() {
       to: params.get("to") ?? "",
       cabin: (CABINS.includes(cabinParam as CabinClass) ? cabinParam : "economy") as CabinClass,
       type: (typeParam === "community" || typeParam === "individual" ? typeParam : "all") as DepartureType,
+      conn: parseConnections(params.get("conn")),
       submitted: params.has("start") && params.has("end"),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,6 +94,7 @@ export default function Search() {
     to: urlState.to,
     cabin: urlState.cabin,
     type: urlState.type,
+    conn: urlState.conn,
   }));
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -96,6 +107,7 @@ export default function Search() {
       to: urlState.to,
       cabin: urlState.cabin,
       type: urlState.type,
+      conn: urlState.conn,
     });
   }, [urlState, tz]);
 
@@ -117,18 +129,83 @@ export default function Search() {
   }, []);
 
   const [offers, setOffers] = useState<Offer[] | null>(null);
+  const [journeys, setJourneys] = useState<ItineraryOffer[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Connections need both ends; "conn" is ignored otherwise.
+  const journeySearch = urlState.conn > 0 && urlState.from !== "" && urlState.to !== "";
 
   useEffect(() => {
     if (!urlState.submitted) {
       setOffers(null);
+      setJourneys(null);
       setLoading(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setSearchError(null);
+
+    if (journeySearch) {
+      setOffers(null);
+      // The itinerary search has no "all" mode: run both and merge (docs/API.md Phase 3).
+      const modes: ("community" | "individual")[] = urlState.type === "all" ? ["community", "individual"] : [urlState.type];
+      Promise.all(
+        modes.map((mode) =>
+          api.searchItineraries({
+            origin: urlState.from,
+            destination: urlState.to,
+            studyStart: urlState.start,
+            studyEnd: urlState.end,
+            mode,
+            maxConnections: urlState.conn as 1 | 2,
+            limit: ITINERARY_LIMIT,
+            ...(session.mode === "guest" ? { timeZone: tz } : {}),
+          }),
+        ),
+      )
+        .then((results) => {
+          if (cancelled) return;
+          const seen = new Set<string>();
+          const merged: ItineraryOffer[] = [];
+          for (const res of results) {
+            for (const o of res.offers) {
+              const key = `${o.mode}:${o.legs.map((l) => l.snapshotId).join(",")}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              merged.push(o);
+            }
+          }
+          const unlocks = session.mode === "guest" ? session.guest.unlocks() : null;
+          const graded = unlocks
+            ? merged.map((o) => {
+                const legs = o.legs.map((l) => {
+                  const airlineLocked = l.airline.tier > unlocks.airlineTier;
+                  return {
+                    ...l,
+                    airline: { ...l.airline, locked: airlineLocked },
+                    cabins: l.cabins.map((c) => ({ ...c, locked: !unlocks.cabinClasses.includes(c.cabin) })),
+                    bookable: !airlineLocked,
+                  };
+                });
+                return { ...o, legs, bookable: legs.every((l) => l.bookable) };
+              })
+            : merged;
+          setJourneys([...graded].sort((a, b) => a.departure.epochMs - b.departure.epochMs));
+        })
+        .catch((e) => {
+          if (!cancelled) setSearchError(errorMessage(e));
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setJourneys(null);
     api
       .search({
         studyStart: urlState.start,
@@ -166,7 +243,7 @@ export default function Search() {
     return () => {
       cancelled = true;
     };
-  }, [urlState, session.mode, tz]);
+  }, [urlState, journeySearch, session.mode, tz]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -188,12 +265,14 @@ export default function Search() {
     if (draft.to) next.set("to", draft.to);
     next.set("cabin", draft.cabin);
     next.set("type", draft.type);
+    if (draft.from && draft.to && draft.conn > 0) next.set("conn", String(draft.conn));
     setParams(next);
   };
 
   const now = session.now();
   const windowDays = session.rules?.bookingWindowDays;
-  const count = offers?.length ?? 0;
+  const count = journeySearch ? (journeys?.length ?? 0) : (offers?.length ?? 0);
+  const studyWindow = { start: urlState.start, end: urlState.end };
 
   return (
     <Page title="Book a flight" lead="Tell us when you can study. We'll show real services that fit, in your own time.">
@@ -251,6 +330,17 @@ export default function Search() {
               </Select>
             )}
           </Field>
+          {draft.from !== "" && draft.to !== "" && (
+            <Field label="Connections">
+              {(id) => (
+                <Select id={id} value={String(draft.conn)} onChange={(e) => setDraft({ ...draft, conn: parseConnections(e.target.value) })}>
+                  <option value="0">Direct only</option>
+                  <option value="1">Up to 1 connection</option>
+                  <option value="2">Up to 2 connections</option>
+                </Select>
+              )}
+            </Field>
+          )}
           <div className="search-submit">
             <Button type="submit" variant="primary" busy={loading}>
               Find flights
@@ -268,17 +358,40 @@ export default function Search() {
           title="Flights that fit"
           aside={
             <span aria-live="polite">
-              {loading ? "Searching" : offers ? `${count} ${count === 1 ? "flight fits" : "flights fit"}` : ""}
+              {loading
+                ? "Searching"
+                : journeySearch
+                  ? journeys
+                    ? `${count} ${count === 1 ? "journey fits" : "journeys fit"}`
+                    : ""
+                  : offers
+                    ? `${count} ${count === 1 ? "flight fits" : "flights fit"}`
+                    : ""}
             </span>
           }
         >
-          {offers && offers.some((o) => o.dataSource === "sample") && (
+          {((offers && offers.some((o) => o.dataSource === "sample")) || (journeys && journeys.some((j) => j.legs.some((l) => l.dataSource === "sample")))) && (
             <Notice>
               <SampleBadge dataSource="sample" />
               <span className="small muted">Times shown are illustrative while the schedule provider is a sample. They are not published airline schedules.</span>
             </Notice>
           )}
-          {loading && offers === null ? (
+          {journeySearch && session.mode === "guest" && journeys && journeys.length > 0 && (
+            <Notice>
+              <span>
+                Connecting flights need an account. <Link to="/account/sign-in">Create one</Link> to book.
+              </span>
+            </Notice>
+          )}
+          {journeySearch ? (
+            loading && journeys === null ? (
+              <Skeleton lines={4} />
+            ) : journeys && journeys.length === 0 ? (
+              <Empty title="No journeys fit that window">Try a longer window, fewer connections, or a different route.</Empty>
+            ) : journeys ? (
+              <ItineraryOffersBoard offers={journeys} now={now} timeZone={tz} cabin={urlState.cabin} studyWindow={studyWindow} canBook={session.mode === "user"} caption="Journeys that fit your study window" />
+            ) : null
+          ) : loading && offers === null ? (
             <Skeleton lines={4} />
           ) : offers && offers.length === 0 ? (
             <Empty title="No flights fit that window">Try a longer window, or a different departure airport.</Empty>

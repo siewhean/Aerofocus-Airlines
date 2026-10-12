@@ -1,13 +1,12 @@
 /**
- * The passport as a book: a closed cover, then page spreads of virtual arrival records (FR-048).
- * Marks are deliberately not styled as immigration endorsements: a plain dashed ring, the IATA
- * code, the country name and the date.
+ * The passport as a book: a closed cover, then spreads of paper pages carrying the arrival stamps
+ * (FR-048). Stamps are ink impressions drawn by <Stamp>; the pages are fixed paper, not UI chrome.
  */
 import { useEffect, useMemo, useState } from "react";
 import type { TravelMarkView } from "../lib/api-ext";
-import { countryName, formatDate } from "../lib/format";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
+import { Stamp } from "./Stamp";
 import "./PassportBook.css";
 
 interface Props {
@@ -42,37 +41,6 @@ function luminance(hex: string): number {
   const g = (n >> 8) & 255;
   const b = n & 255;
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
-
-/** Deterministic ±6° tilt per mark so the page looks hand-placed without changing between renders. */
-function tilt(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 1201) / 100 - 6;
-}
-
-/** "YYYY-MM-DD" from the server, rendered as a short date; anything else is shown as given. */
-function markDate(value: string, timeZone: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!m) return value;
-  const instant = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12);
-  void timeZone; // the date is already in the user's local calendar (FR-049); render it as UTC noon
-  return formatDate(instant, "UTC");
-}
-
-export function Mark({ mark, timeZone }: { mark: TravelMarkView; timeZone: string }) {
-  const angle = tilt(mark.id);
-  return (
-    <div className="pb-mark" style={{ transform: `rotate(${angle}deg)` }} role="img" aria-label={`${countryName(mark.country)}, ${mark.airport}, ${markDate(mark.arrivalDate, timeZone)}, virtual arrival record`}>
-      <span className="pb-mark-code code">{mark.airport}</span>
-      <span className="pb-mark-country">{countryName(mark.country)}</span>
-      <span className="pb-mark-date numeral small">{markDate(mark.arrivalDate, timeZone)}</span>
-      <span className="pb-mark-virtual">virtual</span>
-    </div>
-  );
 }
 
 function useSpreadSize(): number {
@@ -124,20 +92,25 @@ export function PassportBook({ cover, marks, timeZone }: Props) {
           <div className="pb-spread" key={`spread-${view}`}>
             {visible.map((page, i) => {
               const pageNo = firstPage + i + 1;
+              const side = spread === 1 ? "single" : i === 0 ? "left" : "right";
               return (
-                <div key={pageNo} className="pb-page">
+                <div key={pageNo} className={`pb-page pb-page-${side}`}>
                   <div className="pb-page-marks">
                     {page.length === 0 ? (
-                      <p className="muted small pb-page-empty">No marks yet. Complete a flight to earn one.</p>
+                      <p className="small pb-page-empty">No marks yet. Complete a flight to earn one.</p>
                     ) : (
-                      page.map((m) => <Mark key={m.id} mark={m} timeZone={timeZone} />)
+                      page.map((m, slot) => (
+                        <div key={m.id} className={`pb-slot pb-slot-${slot + 1}`}>
+                          <Stamp mark={m} timeZone={timeZone} size={156} />
+                        </div>
+                      ))
                     )}
                   </div>
-                  <span className="pb-page-no numeral small muted">{pageNo}</span>
+                  <span className="pb-page-no numeral">{pageNo}</span>
                 </div>
               );
             })}
-            {visible.length < spread && <div className="pb-page pb-page-blank" aria-hidden="true" />}
+            {visible.length < spread && <div className="pb-page pb-page-right pb-page-blank" aria-hidden="true" />}
           </div>
         )}
       </div>

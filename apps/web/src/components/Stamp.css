@@ -1,0 +1,16 @@
+/* An ink impression. The rotation and opacity are inline per stamp; nothing here animates.
+   Blend mode is left normal; paper surfaces (the passport page) set multiply themselves. */
+.stamp-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+.stamp-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+}

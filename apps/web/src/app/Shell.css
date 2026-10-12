@@ -1,171 +1,136 @@
 .shell {
   min-height: 100dvh;
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Rail: a signage column. On desktop it is fixed and always open. */
-.rail {
-  background: var(--bg-raised);
-  border-bottom: 1px solid var(--line);
+/* Wayfinding strip: one quiet line, like the signage over a concourse. */
+.wayfinding {
   position: sticky;
   top: 0;
   z-index: 50;
-}
-.rail-brand {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: var(--s-3);
-  padding: var(--s-3) var(--s-4);
-  min-height: 56px;
+  gap: var(--s-5);
+  padding: 0 var(--s-4);
+  min-height: 52px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
 }
-.rail-mark {
+.wayfinding-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  text-decoration: none;
+  color: var(--text);
+}
+.wayfinding-mark {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: var(--accent);
   color: var(--accent-text);
   transform: rotate(-20deg);
 }
-.rail-name {
+.wayfinding-name {
   font-weight: 700;
   font-stretch: 90%;
   letter-spacing: -0.01em;
   font-size: var(--fs-2);
 }
-.rail-toggle {
-  margin-left: auto;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: var(--r-2);
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-}
-.rail-groups {
-  display: none;
-  padding: 0 var(--s-3) var(--s-4);
-}
-.rail.is-open .rail-groups {
-  display: block;
-}
-.rail-group {
-  padding-top: var(--s-3);
-}
-.rail-group-label {
-  font-size: var(--fs-0);
-  color: var(--text-2);
-  padding: var(--s-1) var(--s-3);
-}
-.rail-group ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.rail-link {
+.wayfinding-links {
   display: flex;
-  align-items: center;
-  gap: var(--s-3);
+  gap: var(--s-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  justify-self: center;
+  max-width: 100%;
+}
+.wayfinding-links::-webkit-scrollbar {
+  display: none;
+}
+.wayfinding-link {
+  flex: none;
   padding: var(--s-2) var(--s-3);
   border-radius: var(--r-2);
   text-decoration: none;
-  color: var(--text);
+  color: var(--text-2);
   font-weight: 500;
-  border-left: 3px solid transparent;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
 }
-.rail-link:hover {
-  background: var(--bg-sunken);
+.wayfinding-link:hover {
+  color: var(--text);
 }
-.rail-link.is-active {
-  border-left-color: var(--geo);
-  background: color-mix(in srgb, var(--sky) 18%, transparent);
+.wayfinding-link.is-active {
+  color: var(--text);
   font-weight: 600;
+  border-bottom-color: var(--geo);
+  border-radius: var(--r-2) var(--r-2) 0 0;
+}
+.wayfinding-aside {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  justify-self: end;
 }
 
 .content {
-  padding: var(--s-4) var(--s-4) calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--s-6));
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-4) var(--s-8);
   min-width: 0;
 }
 
-/* Bottom tab bar on small screens. */
-.tabbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  background: var(--bg-raised);
-  border-top: 1px solid var(--line);
-  z-index: 50;
-}
-.tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  text-decoration: none;
-  color: var(--text-2);
-  font-size: var(--fs-0);
-  font-weight: 500;
-}
-.tab.is-active {
-  color: var(--text);
-  font-weight: 600;
-}
-.tab.is-active svg {
-  color: var(--geo);
+@media (max-width: 760px) {
+  .wayfinding {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 0;
+    padding-bottom: var(--s-1);
+  }
+  .wayfinding-links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    margin-inline: calc(-1 * var(--s-4));
+    padding-inline: var(--s-4);
+    /* Fade the right edge so the strip reads as scrollable. */
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .wayfinding-who {
+    display: none;
+  }
+  .content {
+    padding: var(--s-5) var(--s-4) var(--s-7);
+  }
 }
 
 @media (min-width: 900px) {
-  .shell {
-    grid-template-columns: 240px 1fr;
-    grid-template-rows: 1fr;
-  }
-  .rail {
-    border-bottom: 0;
-    border-right: 1px solid var(--line);
-    height: 100dvh;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-  .rail-toggle {
-    display: none;
-  }
-  .rail-groups {
-    display: block;
-  }
   .content {
-    padding: var(--s-6) var(--s-7) var(--s-8);
-  }
-  .tabbar {
-    display: none;
+    padding: var(--s-7) var(--s-6) var(--s-8);
   }
 }
 
-/* In-flight: the shell steps back. Pages set data-shell="hidden" on the html element. */
-:root[data-shell="hidden"] .rail,
-:root[data-shell="hidden"] .tabbar {
+/* In flight and in the terminal the strip steps back. Pages set data-shell="hidden". */
+:root[data-shell="hidden"] .wayfinding {
   display: none;
-}
-:root[data-shell="hidden"] .shell {
-  grid-template-columns: 1fr;
 }
 :root[data-shell="hidden"] .content {
   padding: 0;
+  max-width: none;
 }
 
 .page {
-  max-width: var(--content-max);
   display: flex;
   flex-direction: column;
   gap: var(--s-6);

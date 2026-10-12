@@ -4,13 +4,15 @@
  * 45 s and after every action, attendance is reported, prompts are surfaced, and the window is lit
  * from the scenery endpoint (users) or core lighting (guests).
  */
-import { AttendanceReporter } from "@aerofocus/client";
-import { describeLocation, routeFacts, routeGeometry, routeTimeline, windowLightingAt, windowSideOf, type LatLon } from "@aerofocus/core";
+import { AttendanceReporter, type Itinerary } from "@aerofocus/client";
+import { daylightEventsDuringFlight, describeLocation, routeFacts, routeGeometry, routeTimeline, windowLightingAt, windowSideOf, type LatLon } from "@aerofocus/core";
 import { AIRPORTS } from "@aerofocus/data";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Page } from "../app/Shell";
 import { CaptionStrip, useAnnouncements } from "../components/Announcements";
+import { CabinFrame } from "../components/CabinFrame";
+import { FlightPlan } from "../components/FlightPlan";
 import { Countdown } from "../components/Countdown";
 import { FlightControls } from "../components/FlightControls";
 import { FocusPanel, FocusPill } from "../components/FocusPanel";
@@ -21,7 +23,8 @@ import { Window } from "../components/Window";
 import { errorMessage } from "../lib/api";
 import type { SceneryResponse } from "../lib/api-ext";
 import { CabinAudio } from "../lib/audio";
-import { actOnFlight, loadActiveFlight, loadScenery, refreshFlight, type FlightAction, type FlightView, type LoadedFlight } from "../lib/flightSession";
+import { actOnFlight, loadActiveFlight, loadActiveLegContext, loadScenery, refreshFlight, type FlightAction, type FlightView, type LoadedFlight } from "../lib/flightSession";
+import { legLabel } from "../lib/itineraries";
 import { altitudeLabel, formatClock, phaseLabel } from "../lib/format";
 import { notify, requestNotificationPermission } from "../lib/notify";
 import { useSession } from "../lib/session";
@@ -54,7 +57,10 @@ export default function Flight() {
   const [scenery, setScenery] = useState<SceneryResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [audioOn, setAudioOn] = useState(false);
+  const [leg, setLeg] = useState<{ itinerary: Itinerary; legIndex: number } | null>(null);
   const audio = useRef<CabinAudio | null>(null);
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   const plan = loaded?.plan ?? null;
   const { state, now } = useFlightClock(plan);
@@ -97,6 +103,25 @@ export default function Flight() {
       cancelled = true;
     };
   }, [session.ready, session.mode]);
+
+  // Journey context (Phase 7): loaded once per pass that belongs to an itinerary.
+  const itineraryId = view?.boardingPass.itineraryId ?? null;
+  useEffect(() => {
+    const v = viewRef.current;
+    if (!v || !itineraryId) {
+      setLeg(null);
+      return;
+    }
+    let cancelled = false;
+    loadActiveLegContext(sessionRef.current, v)
+      .then((l) => {
+        if (!cancelled) setLeg(l);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [itineraryId]);
 
   const refresh = useCallback(async () => {
     if (!sessionId) return;
@@ -238,6 +263,7 @@ export default function Flight() {
     }
   }, []);
 
+  const [cabinLog, setCabinLog] = useState<{ at: number; text: string }[]>([]);
   const caption = useAnnouncements({
     enabled: Boolean(view && state),
     phase,
@@ -259,15 +285,23 @@ export default function Flight() {
     return describeLocation(state.position, AIRPORTS) ?? coords(state.position);
   }, [scenery, state]);
 
+  useEffect(() => {
+    if (!caption) return;
+    setCabinLog((log) => (log[log.length - 1]?.text === caption ? log : [...log.slice(-19), { at: sessionRef.current.now(), text: caption }]));
+  }, [caption]);
+
   // Route map mode: users have the server geometry; guests compute it once per plan.
   const routeData = useMemo(() => {
     if (mode !== "map" || !plan) return null;
     const facts = routeFacts(plan);
-    if (loaded?.route) return { geometry: loaded.route.geometry, timeline: loaded.route.timeline, facts };
+    if (loaded?.route) {
+      return { geometry: loaded.route.geometry, timeline: loaded.route.timeline, facts, daylightEvents: loaded.route.daylightEvents.map((e) => ({ type: e.type, instant: e.instant })) };
+    }
     return {
       geometry: routeGeometry(plan),
       timeline: routeTimeline(plan, timeZone, { describe: (p) => describeLocation(p, AIRPORTS) }),
       facts,
+      daylightEvents: daylightEventsDuringFlight(plan).map((e) => ({ type: e.type, instant: e.instant })),
     };
   }, [mode, plan, loaded?.route, timeZone]);
 
@@ -321,6 +355,19 @@ export default function Flight() {
         <RouteCodes origin={pass.origin} destination={pass.destination} cities />
       </div>
       <div className="flight-header-aside">
+        {leg && (
+          <div className="flight-journey">
+            <Badge tone="geo">{legLabel(leg.legIndex, leg.itinerary.legs.length)}</Badge>
+            {leg.legIndex < leg.itinerary.legs.length - 1 && (
+              <span className="flight-journey-line small muted">
+                Connecting at {pass.destination.city}; journey ends in {leg.itinerary.destination.city}
+              </span>
+            )}
+            <Button variant="quiet" size="sm" to={`/fly/journey/${leg.itinerary.id}`}>
+              Journey
+            </Button>
+          </div>
+        )}
         {pass.flightType === "community" ? (
           <Badge tone="geo" icon="community">
             Community Flight
@@ -427,7 +474,9 @@ export default function Flight() {
       <div className="flight flight-mode-compact">
         {header}
         <div className="flight-main">
-          <Window {...windowProps} size="mini" />
+          <CabinFrame readingLight={prefs.lighting.readingLight} cabinBrightness={prefs.lighting.cabinBrightness} cabin={view.boardingPass.cabin} side={seatSide ?? "left"} className="flight-cabin flight-cabin-mini">
+            <Window {...windowProps} size="mini" />
+          </CabinFrame>
           {status}
         </div>
         {focusPanel}
@@ -442,13 +491,16 @@ export default function Flight() {
     <div className={`flight flight-mode-${mode}`}>
       {header}
       <div className="flight-main">
-        <Window {...windowProps} size="panel" className="flight-window" />
+        <CabinFrame readingLight={prefs.lighting.readingLight} cabinBrightness={prefs.lighting.cabinBrightness} cabin={view.boardingPass.cabin} side={seatSide ?? "left"} className="flight-cabin">
+          <Window {...windowProps} size="panel" className="flight-window" />
+        </CabinFrame>
         {mode === "map" && routeData && plan ? (
           <div className="flight-map">
             {status}
             {/* Inspection runs locally and never touches the live flight (FR-017, FR-019). */}
             <RouteMap plan={plan} geometry={routeData.geometry} now={now} timeZone={timeZone} inspect sessionId={sessionRef.current.mode === "user" ? sessionId : null} height={360} />
             <RouteTimeline entries={routeData.timeline} timeZone={timeZone} activeOffsetMs={state?.elapsedMs} />
+            <FlightPlan plan={plan} state={state} timeline={routeData.timeline} daylightEvents={routeData.daylightEvents} timeZone={timeZone} announcements={cabinLog} />
           </div>
         ) : (
           status

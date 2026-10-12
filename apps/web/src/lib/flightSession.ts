@@ -4,11 +4,12 @@
  * (packages/client/src/guest.ts:193-220) with core SessionAction (packages/core/src/session.ts:34-41).
  * Both produce a `SessionResponse`-shaped view so pages never branch on mode.
  */
-import type { BoardingPass, SessionResponse } from "@aerofocus/client";
+import type { BoardingPass, Itinerary, SessionResponse } from "@aerofocus/client";
 import { displayTime, type AttendanceSignalKind, type FlightPlan } from "@aerofocus/core";
 import { api, ApiRequestError } from "./api";
 import { apiExt, type SessionRouteFull, type SceneryResponse } from "./api-ext";
 import { BookingError, GUEST_BOOKING_ID, guestBoardingPass } from "./flights";
+import { loadItinerary, OPEN_STATUSES, rememberedOpenItinerary, rememberOpenItinerary } from "./itineraries";
 import type { SessionContextValue } from "./session";
 
 export type FlightView = SessionResponse;
@@ -131,4 +132,19 @@ export async function loadScenery(session: SessionContextValue, sessionId: strin
 export function lastGuestOutcome(session: SessionContextValue) {
   const history = session.guest.load().history;
   return history[history.length - 1] ?? null;
+}
+
+/**
+ * The journey a leg belongs to (Phase 3). A session carries only boardingPass.itineraryId/legIndex
+ * (docs/UI-PLAN.md Phase 7 facts), so the itinerary is fetched separately. Signed-in only: guests
+ * cannot book connections. Null for single flights or when the itinerary is gone.
+ */
+export async function loadActiveLegContext(session: SessionContextValue, view: FlightView): Promise<{ itinerary: Itinerary; legIndex: number } | null> {
+  const { itineraryId, legIndex } = view.boardingPass;
+  if (session.mode !== "user" || !itineraryId || legIndex === null) return null;
+  const itinerary = await loadItinerary(itineraryId);
+  if (!itinerary) return null;
+  if (OPEN_STATUSES.has(itinerary.status)) rememberOpenItinerary(itinerary.id);
+  else if (rememberedOpenItinerary() === itinerary.id) rememberOpenItinerary(null);
+  return { itinerary, legIndex };
 }

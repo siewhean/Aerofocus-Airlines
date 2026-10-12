@@ -2,20 +2,23 @@
  * Arrival (/fly/arrival, FR-013a, FR-015, FR-048): validate within the window, confirm unattended
  * spans, answer the goal question, then the outcome: stamp reveal, invalid, or ended early.
  */
+import type { Itinerary } from "@aerofocus/client";
 import type { TimeSpan } from "@aerofocus/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Page } from "../app/Shell";
 import { Segmented } from "../components/FlightControls";
+import { Stamp } from "../components/Stamp";
 import { errorMessage } from "../lib/api";
-import { apiExt } from "../lib/api-ext";
+import { apiExt, type HistoryItem } from "../lib/api-ext";
 import { airportView } from "../lib/flights";
-import { actOnFlight, lastGuestOutcome, loadActiveFlight, refreshFlight, type FlightView, type LoadedFlight } from "../lib/flightSession";
+import { actOnFlight, lastGuestOutcome, loadActiveFlight, loadActiveLegContext, refreshFlight, type FlightView, type LoadedFlight } from "../lib/flightSession";
+import { loadItinerary } from "../lib/itineraries";
 import { countryName, formatClock, formatCountdown, formatDate, formatDuration } from "../lib/format";
 import { useSession } from "../lib/session";
 import { prefersReducedMotion, setTheme } from "../lib/theme";
 import { useFlightClock } from "../lib/useFlightClock";
-import { Button, Empty, Facts, Notice, Skeleton } from "../ui";
+import { Badge, Button, Empty, Facts, Notice, Skeleton } from "../ui";
 import "./Arrival.css";
 
 const OPEN_FLAG = "aerofocus.flightOpen";
@@ -29,7 +32,13 @@ interface Final {
   arrival: number;
   creditedFocusMs: number;
   creditedFlightMs: number;
+  /** Phase 3: the journey this leg belongs to (apps/api/src/routes/me.ts history items carry both). */
+  itineraryId: string | null;
+  legIndex: number | null;
 }
+
+/** History items now carry the itinerary leg; src/lib/api-ext.ts is typed without it. */
+type HistoryLegItem = HistoryItem & { itineraryId?: string | null; legIndex?: number | null };
 
 function finalFromView(view: FlightView): Final | null {
   const o = view.focus.outcome;
@@ -41,6 +50,8 @@ function finalFromView(view: FlightView): Final | null {
     arrival: view.flight.arrival.epochMs,
     creditedFocusMs: view.focus.creditedFocusMs,
     creditedFlightMs: view.focus.creditedFlightMs,
+    itineraryId: view.boardingPass.itineraryId,
+    legIndex: view.boardingPass.legIndex,
   };
 }
 
@@ -64,6 +75,7 @@ export default function Arrival() {
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState<Set<number>>(() => new Set());
   const [goal, setGoal] = useState<"yes" | "no" | null>(null);
+  const [journey, setJourney] = useState<{ itinerary: Itinerary; legIndex: number } | null>(null);
   const expired = useRef(false);
 
   const plan = loaded?.plan ?? null;
@@ -98,10 +110,12 @@ export default function Arrival() {
         arrival: rec.arrival,
         creditedFocusMs: rec.creditedFocusMs,
         creditedFlightMs: rec.creditedFlightMs,
+        itineraryId: null,
+        legIndex: null,
       };
     }
     const { flights } = await apiExt.history(1);
-    const item = flights[0];
+    const item = flights[0] as HistoryLegItem | undefined;
     if (!item || item.status === "in_flight") return null;
     const d = airportView(item.destination);
     return {
@@ -111,6 +125,8 @@ export default function Arrival() {
       creditedFocusMs: item.creditedFocusMs,
       // History items carry no credited flight time; the scheduled block is right for a completed flight.
       creditedFlightMs: item.status === "complete" ? item.scheduledBlockMs : Math.max(0, item.arrival - item.departure),
+      itineraryId: item.itineraryId ?? null,
+      legIndex: item.legIndex ?? null,
     };
   }, []);
 
@@ -183,6 +199,30 @@ export default function Arrival() {
       /* ignore */
     }
   }, [final]);
+
+  // Journey context (Phase 7): reload the itinerary once the leg has an outcome, so the screen
+  // knows whether this was a transit stop or the final destination.
+  useEffect(() => {
+    if (!final?.itineraryId || sessionRef.current.mode !== "user") {
+      setJourney(null);
+      return;
+    }
+    let cancelled = false;
+    const itineraryId = final.itineraryId;
+    const legIndex = final.legIndex ?? 0;
+    const load =
+      view && view.boardingPass.itineraryId === itineraryId
+        ? loadActiveLegContext(sessionRef.current, view)
+        : loadItinerary(itineraryId).then((it) => (it ? { itinerary: it, legIndex } : null));
+    load
+      .then((j) => {
+        if (!cancelled) setJourney(j);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [final, view]);
 
   const validate = async () => {
     if (!sessionId || !view) return;
@@ -337,20 +377,42 @@ export default function Arrival() {
     </div>
   );
 
+  // Journey legs (Phase 7): an intermediate landing is a transit stop that leads to the terminal;
+  // the last leg completes the journey. Single flights (no itineraryId) are unchanged.
+  const journeyHref = final.itineraryId ? `/fly/journey/${final.itineraryId}` : null;
+  const legCount = journey?.itinerary.legs.length ?? 0;
+  const transit = journey !== null && journey.legIndex < legCount - 1;
+  const lastLeg = journey !== null && journey.legIndex >= legCount - 1;
+  const journeyCancelled = journeyHref && (
+    <Notice tone="amber">
+      <span>The rest of this journey is cancelled. Completed legs keep their credit.</span>
+      <Button size="sm" to={journeyHref}>
+        Rebook
+      </Button>
+    </Notice>
+  );
+
   if (final.outcome === "complete") {
     return (
       <div className="arrival arrival-complete">
         <header className="arrival-header">
-          <p className="muted">Arrived</p>
+          <p className="muted">{transit ? "Landed" : "Arrived"}</p>
           <h1 className="display arrival-title">Welcome to {final.destination.city}</h1>
+          {lastLeg && journey && (
+            <p className="arrival-journey">
+              <span>Journey complete</span>
+              <span className="numeral">
+                {legCount} legs, {formatDuration(journey.itinerary.arrival.epochMs - journey.itinerary.departure.epochMs)}
+              </span>
+            </p>
+          )}
         </header>
         <figure className={`stamp ${reduced ? "is-reduced" : ""}`}>
-          <div className="stamp-ring">
-            <span className="stamp-code display">{final.destination.iata}</span>
-            <span className="stamp-country">{countryName(final.destination.country)}</span>
-            <span className="stamp-date numeral">{formatDate(final.arrival, timeZone)}</span>
-          </div>
-          <figcaption className="small muted">Virtual arrival record, not an immigration stamp</figcaption>
+          <Stamp mark={{ id: sessionId ?? `arrival-${final.arrival}`, country: final.destination.country, airport: final.destination.iata, arrivalDate: final.arrival, isTransit: transit }} timeZone={timeZone} size={220} />
+          <figcaption className="small muted arrival-stamp-caption">
+            {transit && <Badge tone="geo">Transit</Badge>}
+            <span>{transit ? "Transit record" : "Virtual arrival record"}, not an immigration stamp</span>
+          </figcaption>
         </figure>
         <Facts
           items={[
@@ -358,12 +420,24 @@ export default function Arrival() {
             { label: "Flight time", value: formatDuration(final.creditedFlightMs) },
           ]}
         />
-        {links}
-        <div className="arrival-actions">
-          <Button variant="primary" onClick={returnToAirport}>
-            Return to the airport
-          </Button>
-        </div>
+        {transit && journey ? (
+          <div className="arrival-actions">
+            <Button variant="primary" to={`/fly/layover/${journey.itinerary.id}`}>
+              Go to the terminal
+            </Button>
+            <Button to={journeyHref ?? "/fly/bookings"}>View journey</Button>
+          </div>
+        ) : (
+          <>
+            {links}
+            <div className="arrival-actions">
+              <Button variant="primary" onClick={returnToAirport}>
+                Return to the airport
+              </Button>
+              {journeyHref && <Button to={journeyHref}>View journey</Button>}
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -375,6 +449,7 @@ export default function Arrival() {
           <h1 className="display">You left early</h1>
           <p className="muted">Focus completed before your last break is kept.</p>
         </header>
+        {journeyCancelled}
         <Facts items={[{ label: "Credited focus", value: formatDuration(final.creditedFocusMs) }]} />
         {links}
         <div className="arrival-actions">
@@ -394,6 +469,7 @@ export default function Arrival() {
       <Notice tone="danger">
         {final.outcome === "no_show" ? "This booking lapsed before boarding, so it earns no focus credit or stamp." : "This flight wasn't validated in time, so it earns no focus credit or stamp."}
       </Notice>
+      {journeyCancelled}
       {links}
       <div className="arrival-actions">
         <Button variant="primary" onClick={returnToAirport}>

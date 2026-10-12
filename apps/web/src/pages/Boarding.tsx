@@ -12,26 +12,45 @@ import { apiExt } from "../lib/api-ext";
 import { errorMessage } from "../lib/api";
 import { boardBooking, BookingError, getBooking } from "../lib/flights";
 import { formatClock } from "../lib/format";
+import { ITINERARY_ERROR_COPY } from "../lib/itineraries";
 import { useSession } from "../lib/session";
 import { prefersReducedMotion, setTheme } from "../lib/theme";
-import { Button, Notice, Skeleton } from "../ui";
+import { Badge, Button, Notice, Skeleton } from "../ui";
 import "./Boarding.css";
 
 const OPEN_FLAG = "aerofocus.flightOpen";
 const DEFAULT_SEQUENCE_MS = 90_000;
-const STEPS = 5;
 
-type Stage = "loading" | "sequence" | "boarding" | "too_early" | "error";
+type Stage = "loading" | "sequence" | "boarding" | "too_early" | "leg_error" | "error";
+
+/** Phase 3 leg errors from board() (docs/API.md "Connecting flights"): wait for the previous leg, or the journey is over. */
+const LEG_WAIT_CODES: ReadonlySet<string> = new Set(["previous_leg_not_landed", "previous_leg_not_boarded"]);
+const LEG_FAIL_CODES: ReadonlySet<string> = new Set(["connection_missed", "previous_leg_failed", "itinerary_closed"]);
+
+interface LegError {
+  message: string;
+  tone: "amber" | "danger";
+  href: string;
+}
+
+/** A leg after the first of a journey; it boards from the terminal with a shorter introduction. */
+function isConnecting(pass: BoardingPass): boolean {
+  return pass.itineraryId !== null && pass.legIndex !== null && pass.legIndex > 0;
+}
 
 function captionsFor(pass: BoardingPass): string[] {
   const seat = pass.seat;
   const where = seat.wingView ? ", by the window with a view of the wing" : seat.isWindow ? ", by the window" : "";
+  const welcome = `Welcome aboard ${pass.airline.name} flight ${pass.flightNumber} to ${pass.destination.city}.`;
+  const seated = `Your seat is ${seat.seat}${where}.`;
+  const prepare = "Cabin crew, prepare for departure.";
+  if (isConnecting(pass)) return [welcome, seated, prepare];
   return [
-    `Welcome aboard ${pass.airline.name} flight ${pass.flightNumber} to ${pass.destination.city}.`,
-    `Your seat is ${seat.seat}${where}.`,
+    welcome,
+    seated,
     "Please stow your study materials… actually, keep them out. Phones to silent, notifications off.",
     "Safety first: take breaks when scheduled, drink water, and tell us when you're back.",
-    "Cabin crew, prepare for departure.",
+    prepare,
   ];
 }
 
@@ -45,6 +64,7 @@ export default function Boarding() {
   const [pass, setPass] = useState<BoardingPass | null>(null);
   const [stage, setStage] = useState<Stage>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [legError, setLegError] = useState<LegError | null>(null);
   const [opensAt, setOpensAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [aboard, setAboard] = useState(false);
@@ -83,7 +103,8 @@ export default function Boarding() {
           navigate("/fly/active", { replace: true });
           return;
         }
-        if (p.flightType === "community" && s.now() < p.boardingOpensAt.epochMs) {
+        // Journey legs use the pass's own window, never one derived from the mode (docs/UI-PLAN.md Phase 7 facts).
+        if ((p.flightType === "community" || p.itineraryId !== null) && s.now() < p.boardingOpensAt.epochMs) {
           setOpensAt(p.boardingOpensAt.epochMs);
           setStage("too_early");
           return;
@@ -165,6 +186,15 @@ export default function Boarding() {
           navigate("/fly/active", { replace: true });
           return;
         }
+        if (LEG_WAIT_CODES.has(e.code) || LEG_FAIL_CODES.has(e.code)) {
+          setLegError({
+            message: ITINERARY_ERROR_COPY[e.code] ?? e.message,
+            tone: LEG_FAIL_CODES.has(e.code) ? "danger" : "amber",
+            href: pass?.itineraryId ? `/fly/journey/${pass.itineraryId}` : "/fly/bookings",
+          });
+          setStage("leg_error");
+          return;
+        }
       }
       setError(errorMessage(e));
       setStage("error");
@@ -179,10 +209,13 @@ export default function Boarding() {
     setElapsed(total);
   };
 
-  const step = Math.min(STEPS - 1, Math.floor((elapsed / total) * STEPS));
   const captions = pass ? captionsFor(pass) : [];
+  const steps = Math.max(1, captions.length);
+  const step = Math.min(steps - 1, Math.floor((elapsed / total) * steps));
   const caption = captions[step] ?? "";
   const backTo = pass ? `/fly/pass/${pass.bookingId}` : "/fly/bookings";
+  const connecting = pass ? isConnecting(pass) : false;
+  const journeyHref = pass?.itineraryId ? `/fly/journey/${pass.itineraryId}` : null;
 
   return (
     <div className={`boarding ${aboard ? "is-aboard" : ""} ${reduced ? "is-reduced" : ""}`}>
@@ -191,6 +224,7 @@ export default function Boarding() {
       <header className="boarding-header">
         {pass ? (
           <div className="boarding-ident">
+            {connecting && <Badge tone="geo">Connecting flight</Badge>}
             <FlightIdent flightNumber={pass.flightNumber} airline={pass.airline.name} />
             <RouteCodes origin={pass.origin} destination={pass.destination} cities />
           </div>
@@ -218,6 +252,25 @@ export default function Boarding() {
             <p className="muted">Come back when the gate opens. Your seat is held until then.</p>
             <div className="boarding-actions">
               <Button to={backTo}>Back to your boarding pass</Button>
+              {journeyHref && (
+                <Link to={journeyHref} className="small muted">
+                  View journey
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
+
+        {stage === "leg_error" && legError && (
+          <div className="boarding-message">
+            <Notice tone={legError.tone}>{legError.message}</Notice>
+            <div className="boarding-actions">
+              <Button variant="primary" to={legError.href}>
+                View journey
+              </Button>
+              <Link to="/fly/bookings" className="small muted">
+                My bookings
+              </Link>
             </div>
           </div>
         )}
@@ -226,6 +279,7 @@ export default function Boarding() {
           <div className="boarding-message">
             <Notice tone="danger">{error ?? "Boarding failed."}</Notice>
             <div className="boarding-actions">
+              {journeyHref && <Button to={journeyHref}>View journey</Button>}
               <Button to="/fly/bookings">My bookings</Button>
               <Link to="/fly/search" className="small muted">
                 Find another flight

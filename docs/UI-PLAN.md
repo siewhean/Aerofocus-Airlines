@@ -347,3 +347,177 @@ bookings; community map, globe, passport, rewards, settings.
 - Phase 3 backend (itineraries, layovers) landed while the UI was built; the UI treats every
   booking as a single leg (`itineraryId: null`). Layover Terminal and multi-leg views are not built.
 - Nothing in `apps/web` is committed yet.
+
+---
+
+## Phase 7 — Connecting flights, layovers and journeys (PRD Phase 3 UI)
+
+Backend: commit `c1e54c5`; guide in `docs/API.md` "Connecting flights (Phase 3)". Guests can
+search connections but only accounts can book them (`/v1/itineraries` requires a user).
+
+### Allowed APIs (`packages/client/src/api.ts`)
+
+| Method | Line | Returns |
+|---|---|---|
+| `searchItineraries({ origin, destination, studyStart?, studyEnd?, mode?, maxConnections?, limit?, timeZone? })` | 331 | `{ offers: ItineraryOffer[], unlocks }`; direct flights sort first, raise `limit` for connections |
+| `bookItinerary({ mode, legs: [{ snapshotId, cabin }], chosenDeparture?, studyWindow?, studyGoal?, breakSchedule?, rebookedFromId? })` | 333 | `{ itinerary }` |
+| `itineraries({ limit?, before? })` | 335 | `{ itineraries, nextBefore, serverTime }` newest first; no status filter |
+| `itinerary(id)`, `abandonItinerary(id)` | 337–338 | `{ itinerary, serverTime }` |
+| `rebookOptions(id, { mode?, maxConnections?, limit? })` | 339 | `{ rebookedFromId, from, to, offers }` |
+| `layover(id)`, `startLayoverFocus(id)`, `stopLayoverFocus(id)`, `layoverHeartbeat(id)` | 343–346 | `LayoverResponse { layover, departures, serverTime }` |
+| `board(bookingId)` | 328 | legs board like any booking; errors `previous_leg_not_landed`, `previous_leg_not_boarded`, `previous_leg_failed`, `itinerary_closed`, `connection_missed`, `too_early` |
+
+Types: `ItineraryOffer` (153), `ItineraryRequest` (179), `Itinerary` (221), `LayoverView` (189),
+`LayoverResponse` (207). Core: `itineraryPlannedTimes(mode, legs, { now, firstLegMode?, chosenDeparture? })`
+(`itinerary.ts:347`), `loungeAccess` (`layover.ts:94`), `LayoverPhase` (`layover.ts:23`).
+
+### Facts the UI must respect
+
+- A `SessionResponse` has only `boardingPass.itineraryId` / `legIndex`; there is no itinerary on
+  the session. `activeSession()` is `null` during a layover, so the UI finds the open itinerary with
+  `itineraries()` filtered to `status in ["booked", "in_progress"]` and keeps the id in `sessionStorage`.
+- Every leg after the first boards with Community rules whatever its mode: use the pass's
+  `boardingOpensAt` / `boardingClosesAt`, never derive from `mode`.
+- The next leg may be boarded while the previous one is still awaiting validation; validate the
+  previous leg via `itinerary.legs[i].sessionId`.
+- `itinerary.layover` is non-null from the moment leg *i* is boarded (`phase: "not_started"`).
+- `cancelBooking` on a leg fails with `itinerary_leg`; use `abandonItinerary`.
+- Notifications are a plan (`itinerary.notifications`), scheduled locally while the app is open.
+- Lounge is a string on `itinerary.layovers[]` and `{ access, premium }` on `LayoverView`.
+
+### Design
+
+Three atmospheres now: ground (ivory), air (midnight) and **terminal** (ground tokens with a
+cooler, greyer surface `--bg: #ECEEEA` and signage-green departure board accents). The journey is
+drawn as a vertical chain: leg passes stacked with a layover block between them ("2h 15m at Doha",
+lounge badge), the current step highlighted with the sky rule. The Layover Terminal's hero is the
+gate countdown in `.display` numerals with the departures board beneath; the lounge is a quieter
+panel (warm light, "Premium lounge" only when access is premium).
+
+### Implement
+
+1. `src/lib/itineraries.ts`: `findOpenItinerary(api)`, `currentStep(itinerary)` →
+   `{ kind: "board" | "in_flight" | "validate" | "layover" | "done", legIndex, bookingId?, sessionId? }`,
+   `legLabel(i, total)`, `plannedLegsPreview(snapshots, mode, now, chosenDeparture)` via core
+   `itineraryPlannedTimes`, `scheduleItineraryNotifications(plan, channel)` (setTimeout + `notify`,
+   cleared on re-fetch), `ITINERARY_ERROR_COPY` for every code above. Store `aerofocus.openItinerary`.
+2. **Search** (`pages/Search.tsx`): when both From and To are set, a "Connections" select
+   (Direct only / Up to 1 / Up to 2). With connections, call `searchItineraries` (`limit` 60) and
+   render itinerary rows: departs, legs chain (SIN → DOH → LHR codes with plane glyphs and the
+   layover duration under the hub), total time, type, cabins, lock state, Book. Guests see Book
+   replaced by "Create an account to book connections".
+3. **Book journey** (`pages/BookJourney.tsx`, route `/fly/book-journey?mode&legs=snap:cabin,…&departure&start&end`):
+   loads each leg with `flightPlanFull`, previews planned times with `itineraryPlannedTimes`,
+   shows the chain with layovers (`loungeAccess` from the chosen cabins), cabin per leg, goal, breaks,
+   `bookItinerary` → `/fly/journey/:id`. Per-leg errors from `details.errors` shown on the leg.
+4. **Journey** (`pages/Journey.tsx`, `/fly/journey/:id`): status badge, origin → destination,
+   departure/arrival, the vertical chain (compact `BoardingPassCard` per leg, layover blocks), the
+   current step's action (Board leg N / Return to flight / Validate leg N / Go to the terminal),
+   "Abandon journey" (Dialog, only when `canAbandon`), and for incomplete/abandoned journeys a
+   "Rebook from {currentAirport}" section listing `rebookOptions` offers that book with `rebookedFromId`.
+5. **Layover Terminal** (`pages/Layover.tsx`, `/fly/layover/:id`): terminal atmosphere; polls
+   `layover(id)` every 30 s and ticks countdowns locally; hero gate countdown by phase
+   (not_started → "Landing soon", deplaning → "Validate your arrival" with a link to `/fly/arrival`,
+   in_terminal → "Boarding opens in", boarding_open → "Boarding closes in" + primary "Board", missed
+   → danger notice + rebook link, departed/cancelled → links); departures board (`departures[]`,
+   `yours` highlighted); lounge panel; optional layover focus (start/stop, heartbeat every 60 s with
+   `document` visibility, counters, unattended spans). `flight_in_progress` and `outside_layover` copy.
+6. **Integration**: Flight header shows "Leg 1 of 2" and "to LHR via DOH"; Arrival routes to the
+   terminal after validating a non-final leg and shows "Journey complete" with the transit/final
+   mark distinction on the last; Boarding handles the leg error codes; Dashboard adds a "Your
+   journey" section above Departures when an open itinerary exists; Bookings groups legs under their
+   journey with a link; History and Passport label transit marks; Globe keeps `isTransit` dashed.
+7. Nav: "My bookings" page gains a "Journeys" tab listing `itineraries()`.
+
+### Verify
+
+- Book a 2-leg community itinerary with the test user; board leg 1; the journey page shows the
+  layover `not_started`; the Flight header shows "Leg 1 of 2".
+- Layover page renders each phase with fixture data from the test file (`apps/api/test/phase3.test.ts:143-174`).
+- Abandon → rebook offers listed → booking with `rebookedFromId` succeeds.
+- `pnpm typecheck`, `pnpm test`, `pnpm web:build`; axe on search, journey and layover pages.
+
+### Guards
+
+No `boardLeg`/`cancelLeg`/`activeItinerary` methods exist. No `drawToken` for itineraries. Do not
+derive boarding windows from `mode`. Do not call `cancelBooking` on legs.
+
+### Status (12 October 2026)
+
+Phase 7 is built: connection search, journey booking, journey page with abandon and rebook, the
+Layover Terminal (terminal atmosphere, gate countdown, departures board, lounge, layover focus),
+leg-aware flight, arrival and boarding pages, transit marks in the passport and history.
+`pnpm typecheck`, `pnpm test` (182) and `pnpm web:build` pass; axe reports zero violations on the
+journey, layover and search pages. Verified in the browser: a two-leg community journey booked,
+dashboard "Your journey", bookings Journeys tab, journey page, terminal (no layover yet), and the
+other agent's abandon → rebook path. Not exercised against a real clock: deplaning, in_terminal,
+boarding_open and missed phases, and layover focus credit.
+
+---
+
+## Phase 8 — Owner design feedback: realistic, immersive, clean, dark mode
+
+Owner rules (12 Oct 2026): artefacts look real; no dashboard or side menu; a clean interface, not a
+game; dark mode; a detailed, realistic, calm flight experience. "Immersive" means atmosphere and
+fidelity, never scenes or mechanics.
+
+### Design changes
+
+1. **Navigation.** Remove the rail and the bottom tab bar. A single slim wayfinding strip at the
+   top: wordmark, five plain text links named as a passenger would read them in an airport
+   (Departures, Check-in, Passport control, Flights, Account), the local clock. On phones the
+   strip scrolls sideways. Sections link to each other through content (a pass to its journey, a
+   board row to its pass). In flight and in the terminal the strip is hidden, as now.
+2. **Home.** No tiles. A flight-information display: airport and clock as the header, the
+   departures board as the page, one typeset sentence for progress ("12 h of focus across 5
+   flights. Explorer; 3 h to Frequent Flyer."), the two actions as text-weight buttons beneath the
+   board, the guest notice as a single line.
+3. **Boarding pass.** Real IATA card proportions on desktop (8 × 3.25 in, `aspect-ratio: 8 / 3.25`):
+   airline strip, "Boarding pass" title, passenger name, from/to with codes, flight, date, boarding
+   time, departure, gate (a stable gate drawn from the booking id), seat, class, sequence number,
+   a tear-off stub with the same core fields and a PDF417-style barcode block (decorative, drawn in
+   SVG from the booking id). On phones, the mobile-wallet form: portrait card with the barcode at
+   the bottom. Print to the same proportions.
+4. **Passport.** Stamps as ink impressions: SVG with a double-rule border (rounded rectangle or
+   oval per country family), country name, airport code, a boxed date `12 OCT 2026`, "Arrival" or
+   "Transit", a small aircraft glyph, one ink colour per country (blue, red, green, black
+   families), slight rotation, uneven ink via `feTurbulence` displacement and opacity, overlapping
+   placement on a paper page with a faint security pattern. The cover keeps its colour; the
+   open book shows two paper pages.
+5. **Dark mode.** `data-mode="dark"` on the root, following `prefers-color-scheme` with a
+   System / Light / Dark setting. Ground dark: warm charcoal `#17191C`, raised `#202327`, ivory
+   text; terminal dark: cooler `#161A1C`; air is already dark. Every token pair re-checked for
+   4.5:1. The departures board and pass keep their own fixed colours (they are objects, not UI).
+6. **Flight experience.** Around the window: the cabin wall, seat-back edge, overhead reading
+   light that the toggle actually lights, a mood that follows cabin brightness. In the window:
+   terrain and cloud from the scenery endpoint (surface, coast, cloud layer), city lights at
+   night over land, contrails. A flight-plan panel: altitude and ground-speed profile drawn from
+   the phase model, waypoints from the timeline, sunrise and sunset markers, the announcements
+   log, headwind-free honest labelling ("estimated"). Calm: no particles, no score, no sounds
+   beyond the cabin bed and chimes.
+
+### Implement
+
+- A (me): `Shell.tsx`/`.css` → wayfinding strip; `nav.ts` → five links; `tokens.css` → dark mode
+  palettes and `--mode`; `lib/theme.ts` → `applyMode`; Settings → Appearance; Dashboard → FIDS page.
+- B (agent): `BoardingPassCard` rebuilt to the real card; `Barcode.tsx` (PDF417-style SVG);
+  `PassportBook` paper pages and `Stamp.tsx` ink SVG; Arrival stamp reveal uses the same `Stamp`.
+- C (agent): `Window.tsx` depth (terrain, lights, contrails, cabin wall, reading light),
+  `FlightPlan.tsx` (profile chart, waypoints, daylight events, announcements log) used by the Flight
+  page's map mode and the Journey/Book previews.
+
+### Verify
+
+Screenshots at 1280 and 375 of home, pass, passport, flight (cabin and map) in light and dark;
+axe zero violations on each; print preview of the pass; typecheck, tests, build.
+
+### Status (12 October 2026, later)
+
+Phase 8 is built: wayfinding strip instead of rail and tab bar; home as a flight-information display;
+dark mode (system / light / dark) for ground and terminal; the boarding pass as an IATA card with a
+tear-off stub and barcode block on desktop and a wallet pass on phones; passport stamps as ink
+impressions on paper pages; the cabin wall and reading light around the window with terrain,
+cloud layers, night city lights and contrails; a flight-plan panel with the altitude profile,
+waypoints, sunrise and sunset markers and the cabin log. Typecheck, tests and build pass; axe is
+clean on the home, bookings, pass and flight pages. Not seen live: premium-cabin materials, a
+daylight cruise window (the test flight departed at night), and stamps on a real completed flight.

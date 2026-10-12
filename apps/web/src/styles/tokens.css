@@ -60,9 +60,7 @@
   --t-slow: 700ms;
 
   /* Layout */
-  --rail-w: 76px;
   --content-max: 1200px;
-  --tabbar-h: 60px;
 
   /* Semantic: ground */
   --bg: var(--ivory);
@@ -97,8 +95,56 @@
   --geo: var(--sky);
   --premium: var(--gold);
   --focus-ring: var(--sky);
+  /* Status colours lifted for the midnight surfaces (4.5:1 or better on --midnight). */
+  --danger: #e06a5b;
+  --signal: #4fc08c;
+  --amber: #e8b64a;
   --shadow-pass: 0 1px 0 rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
   color-scheme: dark;
+}
+
+/* Terminal: the layover atmosphere. Ground tokens on a cooler, greyer surface. */
+:root[data-theme="terminal"] {
+  --bg: #eceeea;
+  --bg-raised: #f7f8f5;
+  --bg-sunken: #dfe3dd;
+  --line: #cfd4cc;
+  --accent: var(--midnight);
+  --accent-text: var(--ivory);
+  --board: #1d6b4a; /* signage green for the departures board */
+  color-scheme: light;
+}
+
+/*
+  Dark mode (owner rule 4). data-mode="dark" is set by lib/theme.ts from the Appearance setting
+  (system / light / dark). Air is dark by nature; ground and terminal get night palettes here.
+  Objects (boarding pass, stamps, departures board) keep their own fixed colours.
+*/
+:root[data-mode="dark"]:not([data-theme="air"]) {
+  --bg: #17191c;
+  --bg-raised: #202327;
+  --bg-sunken: #101214;
+  --line: #31353b;
+  --text: #ecebe6;
+  --text-2: #a7acb4;
+  --text-3: #7d838c;
+  --accent: var(--ivory);
+  --accent-text: var(--midnight);
+  --geo: var(--sky);
+  --premium: #d1b068;
+  --signal: #4fc08c;
+  --amber: #e8b64a;
+  --danger: #e06a5b;
+  --focus-ring: var(--sky);
+  --shadow-pass: 0 1px 0 rgba(0, 0, 0, 0.4), 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+:root[data-mode="dark"][data-theme="terminal"] {
+  --bg: #161a1c;
+  --bg-raised: #1e2427;
+  --bg-sunken: #0f1314;
+  --line: #2d3539;
+  --board: #2a8a60;
 }
 
 @media (prefers-reduced-motion: reduce) {

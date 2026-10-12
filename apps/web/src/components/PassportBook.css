@@ -60,74 +60,101 @@
   opacity: 0.8;
 }
 
-/* Open spread */
+/* Open spread: two paper pages. Paper is a fixed object colour; the faint radial repeat is the
+   security print, the inner gradient the gutter shadow. */
 .pb-spread {
+  --paper: #f4f1e8;
+  --paper-ink: #1b2230;
+  --paper-slate: #596170;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
   width: 100%;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--r-3);
+  border-radius: 4px 10px 10px 4px;
   overflow: hidden;
   box-shadow: var(--shadow-pass);
   animation: pb-open var(--t-med) var(--ease);
+  color: var(--paper-ink);
 }
 .pb-page {
-  background: var(--bg-raised);
+  position: relative;
+  background-color: var(--paper);
+  background-image: repeating-radial-gradient(circle at 50% 50%, rgba(27, 34, 48, 0.03) 0 1px, transparent 1px 7px);
   min-height: 340px;
-  padding: var(--s-5);
+  padding: var(--s-5) var(--s-5) var(--s-4);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: var(--s-4);
+  overflow: hidden;
+}
+.pb-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pb-page-left::after {
+  background: linear-gradient(to left, rgba(27, 34, 48, 0.11), rgba(27, 34, 48, 0.03) 5%, transparent 12%);
+}
+.pb-page-right::after {
+  background: linear-gradient(to right, rgba(27, 34, 48, 0.11), rgba(27, 34, 48, 0.03) 5%, transparent 12%);
+}
+.pb-page-single::after {
+  background: linear-gradient(to right, rgba(27, 34, 48, 0.08), transparent 10%);
 }
 .pb-page-blank {
-  background: var(--bg-raised);
-  opacity: 0.6;
+  opacity: 0.85;
 }
+
+/* Stamps: a loose 2 × 2 with small per-slot offsets so impressions overlap a little. */
 .pb-page-marks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-4);
+  gap: var(--s-2) 0;
   justify-items: center;
+  align-content: start;
+  flex: 1;
+}
+.pb-slot {
+  display: flex;
+  justify-content: center;
+}
+.pb-slot-1 {
+  transform: translate(6px, 2px);
+}
+.pb-slot-2 {
+  transform: translate(-10px, 14px);
+  z-index: 1;
+}
+.pb-slot-3 {
+  transform: translate(10px, -12px);
+}
+.pb-slot-4 {
+  transform: translate(-4px, 4px);
+  z-index: 1;
+}
+.pb-page .stamp-svg {
+  mix-blend-mode: multiply;
 }
 .pb-page-empty {
   grid-column: 1 / -1;
   justify-self: start;
-}
-.pb-page-no {
-  text-align: right;
+  color: var(--paper-slate);
 }
 
-/* A mark: dashed ring in gold, code, country, date. Not an endorsement. */
-.pb-mark {
-  width: 124px;
-  height: 124px;
-  border-radius: 50%;
-  border: 2px dashed var(--gold);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  text-align: center;
-  padding: var(--s-2);
-  color: var(--gold-deep);
+/* Page number, small, towards the outer edge. */
+.pb-page-no {
+  font-size: 11px;
+  color: var(--paper-slate);
+  position: relative;
+  z-index: 2;
 }
-.pb-mark-code {
-  font-size: var(--fs-4);
+.pb-page-left .pb-page-no,
+.pb-page-single .pb-page-no {
+  text-align: left;
 }
-.pb-mark-country {
-  font-size: var(--fs-0);
-  line-height: 1.15;
-  max-width: 100px;
-  text-wrap: balance;
-}
-.pb-mark-virtual {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  opacity: 0.8;
+.pb-page-right .pb-page-no {
+  text-align: right;
 }
 
 .pb-nav {
@@ -161,6 +188,7 @@
 @media (max-width: 640px) {
   .pb-spread {
     grid-template-columns: 1fr;
+    border-radius: 4px 10px 10px 4px;
   }
   .pb-page-blank {
     display: none;
@@ -172,9 +200,12 @@
 }
 @media (max-width: 400px) {
   .pb-page {
-    padding: var(--s-4);
+    padding: var(--s-4) var(--s-3);
   }
   .pb-page-marks {
-    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .pb-slot .stamp-svg {
+    width: 140px;
   }
 }

@@ -10,6 +10,9 @@ const Search = lazy(() => import("../pages/Search"));
 const Random = lazy(() => import("../pages/Random"));
 const Book = lazy(() => import("../pages/Book"));
 const Bookings = lazy(() => import("../pages/Bookings"));
+const BookJourney = lazy(() => import("../pages/BookJourney"));
+const Journey = lazy(() => import("../pages/Journey"));
+const Layover = lazy(() => import("../pages/Layover"));
 const Pass = lazy(() => import("../pages/Pass"));
 const Boarding = lazy(() => import("../pages/Boarding"));
 const Flight = lazy(() => import("../pages/Flight"));
@@ -52,6 +55,9 @@ export function App() {
                 <Route path="/fly/random" element={<Random />} />
                 <Route path="/fly/book/:snapshotId" element={<Book />} />
                 <Route path="/fly/bookings" element={<Bookings />} />
+                <Route path="/fly/book-journey" element={<BookJourney />} />
+                <Route path="/fly/journey/:id" element={<Journey />} />
+                <Route path="/fly/layover/:id" element={<Layover />} />
                 <Route path="/fly/pass/:bookingId" element={<Pass />} />
                 <Route path="/fly/boarding/:bookingId" element={<Boarding />} />
                 <Route path="/fly/active" element={<Flight />} />

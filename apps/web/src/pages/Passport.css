@@ -49,3 +49,26 @@
 .pp-search {
   max-width: 360px;
 }
+/* Countries with visits split into final arrivals and transits (FR-050). */
+.pp-countries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 0 var(--s-5);
+}
+.pp-countries li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 400px) {
+  .pp-countries li {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

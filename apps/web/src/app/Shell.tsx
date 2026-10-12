@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { NavLink, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
 import { formatClock } from "../lib/format";
 import { useSession } from "../lib/session";
 import { Icon } from "../ui/Icon";
-import { NAV } from "./nav";
+import { WAYFINDING } from "./nav";
 import "./Shell.css";
 
 /** A live clock in the user's own time zone (FR-012). Ticks once a minute. */
@@ -22,62 +22,49 @@ export function LocalClock({ seconds = false }: { seconds?: boolean }) {
   );
 }
 
+function isActive(pathname: string, match: string[]): boolean {
+  return match.some((m) => (m === "/" ? pathname === "/" : pathname === m || pathname.startsWith(`${m}/`)));
+}
+
+/**
+ * The shell is a wayfinding strip, not a dashboard rail (Phase 8): wordmark, five links named as
+ * a passenger reads them in an airport, the local clock. Pages link onward through their content.
+ */
 export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [pathname]);
+  const { mode, user } = useSession();
 
   return (
     <div className="shell">
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <nav className={`rail ${open ? "is-open" : ""}`} aria-label="Main">
-        <div className="rail-brand">
-          <span className="rail-mark" aria-hidden="true">
-            <Icon name="plane" size={22} />
+      <header className="wayfinding">
+        <Link to="/" className="wayfinding-brand" aria-label="Aerofocus Airlines, departures">
+          <span className="wayfinding-mark" aria-hidden="true">
+            <Icon name="plane" size={18} />
           </span>
-          <span className="rail-name">Aerofocus</span>
-          <button type="button" className="rail-toggle" aria-expanded={open} aria-controls="rail-groups" onClick={() => setOpen((o) => !o)}>
-            <Icon name={open ? "close" : "menu"} />
-            <span className="visually-hidden">Menu</span>
-          </button>
+          <span className="wayfinding-name">Aerofocus</span>
+        </Link>
+        <nav className="wayfinding-links" aria-label="Wayfinding">
+          {WAYFINDING.map((w) => {
+            const active = isActive(pathname, w.match);
+            return (
+              <Link key={w.to} to={w.to} className={`wayfinding-link ${active ? "is-active" : ""}`} aria-current={active ? "page" : undefined}>
+                {w.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="wayfinding-aside">
+          <span className="wayfinding-who small muted">{mode === "user" ? (user?.displayName ?? "Signed in") : "Guest"}</span>
+          <LocalClock />
         </div>
-        <div id="rail-groups" className="rail-groups">
-          {NAV.map((group) => (
-            <div key={group.label} className="rail-group">
-              <div className="rail-group-label">{group.label}</div>
-              <ul>
-                {group.items.map((item) => (
-                  <li key={item.to}>
-                    <NavLink to={item.to} end={item.to === "/"} className={({ isActive }) => `rail-link ${isActive ? "is-active" : ""}`}>
-                      <Icon name={item.icon} />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </nav>
+      </header>
 
       <main id="main" className="content">
         {children}
       </main>
-
-      <nav className="tabbar" aria-label="Sections">
-        {NAV.map((group) => {
-          const item = group.items.find((i) => i.primary) ?? group.items[0]!;
-          const active = group.items.some((i) => (i.to === "/" ? pathname === "/" : pathname.startsWith(i.to.split("/").slice(0, 2).join("/"))));
-          return (
-            <NavLink key={group.label} to={item.to} end={item.to === "/"} className={`tab ${active ? "is-active" : ""}`} aria-current={active ? "page" : undefined}>
-              <Icon name={item.icon} />
-              <span>{group.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
     </div>
   );
 }

@@ -146,6 +146,10 @@ export interface TravelMarkView {
   designId?: string;
   category?: string;
   createdAt?: number;
+  /** Phase 3: landed at an intermediate airport of a journey (FR-048). */
+  isTransit?: boolean;
+  /** How many times the user had reached that country at the time, transit and final together (FR-050). */
+  visitNumber?: number;
 }
 
 export interface PassportResponse {

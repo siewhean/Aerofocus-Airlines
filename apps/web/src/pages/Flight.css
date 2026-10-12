@@ -30,7 +30,20 @@
 .flight-header-aside {
   display: flex;
   align-items: center;
+  gap: var(--s-4);
   min-width: 0;
+  flex-wrap: wrap;
+}
+/* Journey context on a connecting leg (Phase 7): leg badge, the onward line and a link. */
+.flight-journey {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-1);
+  text-align: right;
+}
+.flight-journey-line {
+  max-width: 32ch;
 }
 .flight-share .toggle-row {
   padding: 0;
@@ -255,7 +268,10 @@
   }
   /* Keep the countdown and the focus row above the fold on a phone. */
   .flight-window {
-    max-width: min(360px, 26vh);
+    max-width: none;
+  }
+  .flight-cabin {
+    width: min(100%, 300px, 38vh);
   }
   .flight {
     gap: var(--s-4);
@@ -270,8 +286,26 @@
   .flight-header-aside {
     width: 100%;
   }
+  .flight-journey {
+    align-items: flex-start;
+    text-align: left;
+  }
   .flight-ambient-overlay {
     left: var(--s-4);
     bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Map mode: the cabin stays at the top beside the long route column instead of being centred. */
+.flight-mode-map .flight-main {
+  align-items: start;
+}
+.flight-mode-map .flight-cabin {
+  position: sticky;
+  top: var(--s-4);
+}
+@media (max-width: 760px) {
+  .flight-mode-map .flight-cabin {
+    position: static;
   }
 }

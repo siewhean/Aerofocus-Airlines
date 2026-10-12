@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Page } from "../app/Shell";
 import { coverHex, PassportBook } from "../components/PassportBook";
 import { errorMessage } from "../lib/api";
-import { apiExt, type TravelMarkView } from "../lib/api-ext";
+import { apiExt, type PassportResponse, type TravelMarkView } from "../lib/api-ext";
 import { countryName, formatDate } from "../lib/format";
 import { useSession, writeLocal } from "../lib/session";
-import { Board, Cell, Empty, Facts, Field, Input, Notice, Section, Skeleton, useToast } from "../ui";
+import { Badge, Board, Cell, Empty, Facts, Field, Input, Notice, Section, Skeleton, useToast } from "../ui";
 import "./Passport.css";
 
 const GUEST_COVER_KEY = "aerofocus.passportColour";
@@ -29,9 +29,28 @@ function readGuestCover(): string {
   }
 }
 
+/**
+ * Phase 3 fields from apps/api/src/routes/me.ts: marks carry `isTransit` (landed at a layover
+ * airport, FR-048) and `visitNumber` (FR-050); countries split visits into transit and final.
+ * src/lib/api-ext.ts is typed without them, so they are extended locally.
+ */
+type MarkView = TravelMarkView & { isTransit?: boolean; visitNumber?: number | null };
+interface CountryVisits {
+  country: string;
+  visits: number;
+  transit: number;
+  final: number;
+}
+type PassportExt = Omit<PassportResponse, "marks" | "countries"> & { marks: MarkView[]; countries: CountryVisits[] };
+
 interface Data {
   cover: string;
-  marks: TravelMarkView[];
+  marks: MarkView[];
+  countries: CountryVisits[];
+}
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 export default function Passport() {
@@ -44,21 +63,31 @@ export default function Passport() {
 
   const load = useCallback(async (): Promise<Data> => {
     if (session.mode === "user") {
-      const res = await apiExt.passport();
-      return { cover: res.cover, marks: res.marks };
+      const res = (await apiExt.passport()) as PassportExt;
+      return { cover: res.cover, marks: res.marks, countries: res.countries };
     }
     // Guests: one virtual mark per completed flight on this device (FR-049), newest last.
+    // Guests cannot book connections, so every guest mark is a final arrival.
     const history = session.guest.load().history.filter((r) => r.outcome === "complete");
-    const marks: TravelMarkView[] = history.map((r, i) => ({
-      id: `guest-${i}-${r.snapshotId}-${r.arrival}`,
-      country: r.destinationCountry,
-      airport: r.destination,
-      airline: r.airline,
-      aircraftType: r.aircraftType,
-      arrivalDate: localDate(r.arrival, session.timeZone),
-      createdAt: r.arrival,
-    }));
-    return { cover: readGuestCover(), marks };
+    const visitsByCountry = new Map<string, CountryVisits>();
+    const marks: MarkView[] = history.map((r, i) => {
+      const v = visitsByCountry.get(r.destinationCountry) ?? { country: r.destinationCountry, visits: 0, transit: 0, final: 0 };
+      v.visits++;
+      v.final++;
+      visitsByCountry.set(r.destinationCountry, v);
+      return {
+        id: `guest-${i}-${r.snapshotId}-${r.arrival}`,
+        country: r.destinationCountry,
+        airport: r.destination,
+        airline: r.airline,
+        aircraftType: r.aircraftType,
+        arrivalDate: localDate(r.arrival, session.timeZone),
+        createdAt: r.arrival,
+        isTransit: false,
+        visitNumber: v.visits,
+      };
+    });
+    return { cover: readGuestCover(), marks, countries: [...visitsByCountry.values()] };
   }, [session.mode, session.guest, session.timeZone]);
 
   useEffect(() => {
@@ -102,11 +131,13 @@ export default function Passport() {
     const q = query.trim().toLowerCase();
     const list = [...data.marks].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0) || b.arrivalDate.localeCompare(a.arrivalDate));
     if (!q) return list;
-    return list.filter((m) => [m.country, countryName(m.country), m.airport, m.flightNumber ?? "", m.airline ?? ""].some((s) => s.toLowerCase().includes(q)));
+    return list.filter((m) => [m.country, countryName(m.country), m.airport, m.flightNumber ?? "", m.airline ?? "", m.isTransit ? "transit" : "arrival"].some((s) => s.toLowerCase().includes(q)));
   }, [data, query]);
 
   const countries = useMemo(() => new Set(data?.marks.map((m) => m.country) ?? []).size, [data]);
   const airports = useMemo(() => new Set(data?.marks.map((m) => m.airport) ?? []).size, [data]);
+  const transits = useMemo(() => data?.marks.filter((m) => m.isTransit).length ?? 0, [data]);
+  const countryRows = useMemo(() => [...(data?.countries ?? [])].sort((a, b) => b.visits - a.visits || countryName(a.country).localeCompare(countryName(b.country))), [data]);
 
   const customValue = data?.cover.startsWith("custom:") ? data.cover.slice("custom:".length) : "#1f2b4d";
 
@@ -143,8 +174,24 @@ export default function Passport() {
               { label: "Countries", value: countries },
               { label: "Airports visited", value: airports },
               { label: "Total marks", value: data.marks.length },
+              { label: "Transit marks", value: transits },
             ]}
           />
+
+          {countryRows.length > 0 && (
+            <Section title="Countries">
+              <ul className="pp-countries">
+                {countryRows.map((c) => (
+                  <li key={c.country}>
+                    <span>{countryName(c.country)}</span>
+                    <span className="numeral muted small">
+                      {plural(c.visits, "visit", "visits")} ({plural(c.final, "arrival", "arrivals")}, {plural(c.transit, "transit", "transits")})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           <Section title="All marks">
             <Field label="Search marks" hint="Country, airport or flight number.">
@@ -163,6 +210,10 @@ export default function Passport() {
                     <Cell head>Airport</Cell>
                     <Cell head>Flight</Cell>
                     <Cell head>Airline</Cell>
+                    <Cell head>Type</Cell>
+                    <Cell head num>
+                      Visit
+                    </Cell>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,6 +226,8 @@ export default function Passport() {
                       </Cell>
                       <Cell>{m.flightNumber ?? "—"}</Cell>
                       <Cell>{m.airline ?? "—"}</Cell>
+                      <Cell>{m.isTransit ? <Badge tone="geo">Transit</Badge> : "Arrival"}</Cell>
+                      <Cell num>{m.visitNumber ?? "—"}</Cell>
                     </tr>
                   ))}
                 </tbody>

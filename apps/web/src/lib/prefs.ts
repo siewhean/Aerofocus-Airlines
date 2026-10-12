@@ -25,6 +25,8 @@ export interface UiPreferences {
   focusMode: "cabin" | "compact" | "minimal" | "ambient" | "map";
   skipBoardingIntro: boolean;
   showOtherFlights: boolean;
+  /** Dark mode: follow the system, or force light / dark (owner rule 4). */
+  appearance: "system" | "light" | "dark";
 }
 
 export const DEFAULT_PREFS: UiPreferences = {
@@ -35,6 +37,7 @@ export const DEFAULT_PREFS: UiPreferences = {
   focusMode: "cabin",
   skipBoardingIntro: false,
   showOtherFlights: true,
+  appearance: "system",
 };
 
 const KEY = "aerofocus.prefs.v1";

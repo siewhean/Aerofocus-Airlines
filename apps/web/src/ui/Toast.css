@@ -1,7 +1,7 @@
 .toasts {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--s-4));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s-5));
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;

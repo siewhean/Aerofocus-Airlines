@@ -14,8 +14,7 @@
 }
 
 @media print {
-  .shell .rail,
-  .shell .tabbar,
+  .shell .wayfinding,
   .skip-link,
   .page-header,
   .pass-page-line,

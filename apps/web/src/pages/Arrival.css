@@ -22,6 +22,34 @@
 .arrival-title {
   font-size: clamp(2.25rem, 8vw, 4.5rem);
 }
+/* Journey legs (Phase 7). */
+.arrival-journey {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--text-2);
+}
+.arrival-journey span + span::before {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  background: var(--line);
+  margin-right: var(--s-3);
+  vertical-align: middle;
+}
+.arrival-stamp-caption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.arrival .notice .btn {
+  margin-left: auto;
+}
 .arrival-deadline {
   color: var(--amber);
   font-size: var(--fs-3);

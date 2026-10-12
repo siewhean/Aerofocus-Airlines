@@ -51,3 +51,15 @@ export const NAV: NavGroup[] = [
     ],
   },
 ];
+
+/**
+ * Wayfinding strip (Phase 8): five links named as a passenger reads them in an airport. Everything
+ * else is reached through content (a board row to its pass, a pass to its journey).
+ */
+export const WAYFINDING: { to: string; label: string; match: string[] }[] = [
+  { to: "/", label: "Departures", match: ["/", "/fly/search", "/fly/random", "/fly/book", "/fly/book-journey"] },
+  { to: "/fly/bookings", label: "Check-in", match: ["/fly/bookings", "/fly/pass", "/fly/journey", "/fly/boarding", "/fly/active", "/fly/arrival", "/fly/layover"] },
+  { to: "/collection/passport", label: "Passport control", match: ["/collection"] },
+  { to: "/explore/community", label: "Flights", match: ["/explore"] },
+  { to: "/account/profile", label: "Account", match: ["/account"] },
+];

@@ -1,16 +1,18 @@
-import type { BoardingPass } from "@aerofocus/client";
+import type { BoardingPass, Itinerary } from "@aerofocus/client";
 import { levelFor, nextLevelProgress, type NextLevelProgress, type ProgressStats } from "@aerofocus/core";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { LocalClock, Page } from "../app/Shell";
 import { passStatus } from "../components/BoardingPassCard";
+import { ItineraryStatusBadge } from "../components/JourneyChain";
 import { FlightIdent, RouteCodes } from "../components/RouteCodes";
 import { api, errorMessage } from "../lib/api";
 import { apiExt, type HistoryItem } from "../lib/api-ext";
 import { airportView, hasActiveFlight, listBookings } from "../lib/flights";
 import { formatClock, formatDate, formatDuration, formatHours, formatRelativeDay } from "../lib/format";
+import { currentStep, findOpenItinerary, journeyCodes, type JourneyStep } from "../lib/itineraries";
 import { useSession, writeLocal } from "../lib/session";
-import { Badge, Board, Button, Cell, Empty, Facts, Field, Notice, Section, Select, Skeleton, useToast } from "../ui";
+import { Badge, Board, Button, Cell, Empty, Facts, Field, Icon, Notice, Section, Select, Skeleton, useToast } from "../ui";
 import "./Dashboard.css";
 
 type RowStatus = "booked" | "boarding" | "boarded" | "other";
@@ -29,6 +31,33 @@ interface Flying {
   levelName: string;
   next: NextLevelProgress | null;
   last: { flightNumber: string | null; airline: string; origin: string; destination: string; departure: number } | null;
+}
+
+/** The current step as one sentence plus its action (docs/UI-PLAN.md Phase 7 item 6). */
+function journeyStepView(it: Itinerary, step: JourneyStep, now: number, tz: string): { sentence: string; label: string; to: string; primary: boolean } {
+  const total = it.legs.length;
+  const view = { label: "View journey", to: `/fly/journey/${encodeURIComponent(it.id)}`, primary: false };
+  switch (step.kind) {
+    case "board": {
+      const n = step.legIndex + 1;
+      if (now >= step.opensAt && now <= step.closesAt) {
+        return { sentence: `Leg ${n} of ${total} is boarding until ${formatClock(step.closesAt, tz)}.`, label: `Board leg ${n}`, to: `/fly/boarding/${encodeURIComponent(step.bookingId)}`, primary: true };
+      }
+      return { ...view, sentence: `Leg ${n} of ${total} boards at ${formatClock(step.opensAt, tz)}.` };
+    }
+    case "in_flight":
+      return { sentence: `Leg ${step.legIndex + 1} of ${total} is in the air.`, label: "Return to your flight", to: "/fly/active", primary: true };
+    case "validate":
+      return { sentence: `Leg ${step.legIndex + 1} of ${total} has landed. Validate your arrival.`, label: `Validate leg ${step.legIndex + 1}`, to: "/fly/arrival", primary: true };
+    case "layover": {
+      const hub = it.layovers.find((l) => l.afterLegIndex === step.legIndex)?.airport ?? it.currentAirport;
+      const next = it.legs[step.legIndex + 1];
+      const opens = next ? ` Boarding opens ${formatClock(next.boardingPass.boardingOpensAt, tz)}.` : "";
+      return { sentence: `In the terminal at ${hub.city}.${opens}`, label: "Go to the terminal", to: `/fly/layover/${encodeURIComponent(it.id)}`, primary: true };
+    }
+    default:
+      return { ...view, sentence: "Your journey is booked." };
+  }
 }
 
 /** "3.5 more focus hours and 2 more flights" from the next level's missing requirement. */
@@ -50,6 +79,7 @@ export default function Dashboard() {
   const tz = session.timeZone;
 
   const [bookings, setBookings] = useState<BoardingPass[] | null>(null);
+  const [journey, setJourney] = useState<Itinerary | null>(null);
   const [active, setActive] = useState(false);
   const [flying, setFlying] = useState<Flying | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,8 +99,9 @@ export default function Dashboard() {
         setBookings(list);
         setActive(hasActive);
         if (session.mode === "user") {
-          const [prog, hist] = await Promise.all([apiExt.progression(), apiExt.history(1)]);
+          const [prog, hist, openJourney] = await Promise.all([apiExt.progression(), apiExt.history(1), findOpenItinerary().catch(() => null)]);
           if (cancelled) return;
+          setJourney(openJourney);
           const h: HistoryItem | undefined = hist.flights[0];
           setFlying({
             stats: prog.stats,
@@ -79,6 +110,7 @@ export default function Dashboard() {
             last: h ? { flightNumber: h.flightNumber, airline: h.airline, origin: h.origin, destination: h.destination, departure: h.departure } : null,
           });
         } else {
+          setJourney(null);
           const s = session.guest.stats(tz);
           const stats: ProgressStats = { creditedFocusMs: s.creditedFocusMs, completedFlights: s.completedFlights, countries: s.countriesCollected, specialAchievements: 0 };
           const history = session.guest.load().history;
@@ -128,9 +160,10 @@ export default function Dashboard() {
             <span className="code">{home.iata}</span>
           </span>
         ) : (
-          "Choose your home airport"
+          "Departures"
         )
       }
+      lead={home ? undefined : "Choose a home airport and searches will start from it."}
       aside={
         <div className="dash-clock">
           <LocalClock seconds />
@@ -140,21 +173,45 @@ export default function Dashboard() {
     >
       {!home && <HomeAirportPicker />}
 
-      <div className="dash-actions">
-        <Button variant="primary" size="lg" to="/fly/search">
-          I can study until…
-        </Button>
-        <Button size="lg" to="/fly/random">
-          Random flight
-        </Button>
-        {active && (
+      {active && (
+        <div className="dash-actions">
           <Button variant="primary" size="lg" to="/fly/active">
             Return to your flight
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && <Notice tone="danger">{error}</Notice>}
+
+      {journey && (
+        <Section title="Your journey" aside={<ItineraryStatusBadge status={journey.status} />}>
+          {(() => {
+            const step = journeyStepView(journey, currentStep(journey, now), now, tz);
+            const codes = journeyCodes(journey);
+            return (
+              <div className="dash-journey">
+                <span className="dash-journey-codes" aria-label={codes.join(" to ")}>
+                  {codes.map((c, i) => (
+                    <span key={`${c}-${i}`} className="dash-journey-node">
+                      {i > 0 && <Icon name="plane" size={16} className="dash-journey-plane" title="to" />}
+                      <span className="code">{c}</span>
+                    </span>
+                  ))}
+                </span>
+                <p className="dash-journey-step">{step.sentence}</p>
+                <div className="dash-journey-actions">
+                  <Button variant={step.primary ? "primary" : "secondary"} to={step.to}>
+                    {step.label}
+                  </Button>
+                  {step.primary && (
+                    <Link to={`/fly/journey/${encodeURIComponent(journey.id)}`}>View journey</Link>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </Section>
+      )}
 
       <Section title="Departures" aside={bookings && bookings.length > 0 ? `${bookings.length} ${bookings.length === 1 ? "flight" : "flights"}` : undefined}>
         {bookings === null ? (
@@ -190,7 +247,10 @@ export default function Dashboard() {
                       </span>
                     </Cell>
                     <Cell>
-                      <FlightIdent flightNumber={p.flightNumber} airline={p.airline.name} />
+                      <span className="dash-flight">
+                        <FlightIdent flightNumber={p.flightNumber} airline={p.airline.name} />
+                        {p.itineraryId !== null && p.legIndex !== null && <Badge tone="geo">Leg {p.legIndex + 1}</Badge>}
+                      </span>
                     </Cell>
                     <Cell>
                       <RouteCodes origin={p.origin} destination={p.destination} />
@@ -215,6 +275,8 @@ export default function Dashboard() {
                         <Button variant="primary" size="sm" busy={boarding === p.bookingId} onClick={() => onBoard(p.bookingId)}>
                           Board
                         </Button>
+                      ) : p.itineraryId !== null ? (
+                        <Link to={`/fly/journey/${encodeURIComponent(p.itineraryId)}`}>View journey</Link>
                       ) : (
                         <Link to={`/fly/pass/${p.bookingId}`}>View pass</Link>
                       )}
@@ -227,32 +289,39 @@ export default function Dashboard() {
         )}
       </Section>
 
-      <Section title="Your flying">
+      <div className="dash-actions">
+        <Button size="lg" to="/fly/search">
+          I can study until…
+        </Button>
+        <Button size="lg" variant="quiet" to="/fly/random">
+          Random flight
+        </Button>
+      </div>
+
+      <section className="dash-flying" aria-label="Your flying">
         {flying === null && !error ? (
-          <Skeleton lines={2} />
+          <Skeleton lines={1} />
         ) : flying ? (
-          <>
-            <Facts
-              items={[
-                { label: "Focus hours", value: formatHours(flying.stats.creditedFocusMs) },
-                { label: "Completed flights", value: flying.stats.completedFlights },
-                { label: "Countries", value: flying.stats.countries },
-                { label: "Level", value: flying.levelName },
-                { label: "Next unlock", value: <span className="small">{missingSentence(flying.next)}</span> },
-              ]}
-            />
+          <p className="dash-flying-line">
+            {flying.stats.completedFlights === 0 ? (
+              <>No flights landed yet. Your first validated arrival starts the log.</>
+            ) : (
+              <>
+                {formatHours(flying.stats.creditedFocusMs)} of focus across {flying.stats.completedFlights} {flying.stats.completedFlights === 1 ? "flight" : "flights"} and{" "}
+                {flying.stats.countries} {flying.stats.countries === 1 ? "country" : "countries"}.
+              </>
+            )}{" "}
+            {flying.levelName}
+            {flying.next ? `; ${missingSentence(flying.next)}` : "."}
             {flying.last && (
-              <p className="dash-last muted">
-                <span>Last flight:</span>
-                {flying.last.flightNumber && <span className="code">{flying.last.flightNumber}</span>}
-                {!flying.last.flightNumber && <span>{flying.last.airline}</span>}
-                <RouteCodes origin={{ iata: flying.last.origin }} destination={{ iata: flying.last.destination }} />
-                <span>{formatDate(flying.last.departure, tz)}</span>
-              </p>
+              <>
+                {" "}
+                Last flight {flying.last.flightNumber ?? flying.last.airline}, {flying.last.origin} to {flying.last.destination}, {formatDate(flying.last.departure, tz)}.
+              </>
             )}
-          </>
+          </p>
         ) : null}
-      </Section>
+      </section>
 
       {session.mode === "guest" && (
         <Notice tone="amber">
