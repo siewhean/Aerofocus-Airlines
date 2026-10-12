@@ -13,6 +13,9 @@ html {
   -webkit-text-size-adjust: 100%;
   background: var(--bg);
   color: var(--text);
+}
+/* The atmosphere crossfade only after first paint, so a page never loads mid-transition. */
+html.is-ready {
   transition: background-color var(--t-slow) var(--ease), color var(--t-slow) var(--ease);
 }
 

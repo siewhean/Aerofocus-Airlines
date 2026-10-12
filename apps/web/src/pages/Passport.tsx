@@ -141,6 +141,18 @@ export default function Passport() {
 
   const customValue = data?.cover.startsWith("custom:") ? data.cover.slice("custom:".length) : "#1f2b4d";
 
+  // The data page's date of issue: the earliest mark (Phase 9 item 6). Marks without createdAt
+  // fall back to noon UTC of their arrival date.
+  const firstFlightAt = useMemo(() => {
+    let earliest: number | null = null;
+    for (const m of data?.marks ?? []) {
+      const at = m.createdAt ?? arrivalInstant(m.arrivalDate);
+      if (at !== null && (earliest === null || at < earliest)) earliest = at;
+    }
+    return earliest;
+  }, [data]);
+  const holderId = session.mode === "user" ? (session.user?.id ?? "") : (session.guestState?.presenceId ?? session.guest.load().presenceId);
+
   return (
     <Page title="Passport" lead="Every validated flight adds a virtual arrival record. Cover colour is yours to choose.">
       {error && <Notice tone="danger">{error}</Notice>}
@@ -167,7 +179,15 @@ export default function Passport() {
             <p className="small muted">Changing the cover never alters the marks you have earned.</p>
           </Section>
 
-          <PassportBook cover={data.cover} marks={data.marks} timeZone={session.timeZone} />
+          <PassportBook
+            cover={data.cover}
+            marks={data.marks}
+            timeZone={session.timeZone}
+            holderName={session.mode === "user" ? (session.user?.displayName ?? null) : null}
+            holderId={holderId}
+            holderKind={session.mode === "user" ? "member" : "guest"}
+            firstFlightAt={firstFlightAt}
+          />
 
           <Facts
             items={[
@@ -238,6 +258,11 @@ export default function Passport() {
       )}
     </Page>
   );
+}
+
+function arrivalInstant(value: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
 }
 
 function markDate(value: string): string {

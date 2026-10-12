@@ -521,3 +521,64 @@ cloud layers, night city lights and contrails; a flight-plan panel with the alti
 waypoints, sunrise and sunset markers and the cabin log. Typecheck, tests and build pass; axe is
 clean on the home, bookings, pass and flight pages. Not seen live: premium-cabin materials, a
 daylight cruise window (the test flight departed at night), and stamps on a real completed flight.
+
+---
+
+## Phase 9 — Finish the direction: no admin screens, every artefact real
+
+Owner rules apply (Phase 8). Each screen is designed as the real-world object a passenger would
+hold or read, in a calm, clean interface. No tiles, no admin tables, no sidebars.
+
+### Item 1 — The remaining admin-looking pages
+
+1. **Profile → the frequent-flyer card.** One card object in the house palette (midnight with a
+   gold rule for Gold and above, navy for Silver and below), the member name, level name, a
+   member number derived from the user id, "Member since" when known, and the progress to the
+   next level as a thin bar on the card. Beneath the card, the flying record as a typeset
+   paragraph and a short definition list in one column (focus hours, flights, countries, airports,
+   longest flight, streak), not tiles. Guest: the same card marked "Guest pass" with the expiry.
+2. **Rewards → the membership booklet.** The level ladder as a single column of levels printed
+   like the tiers page of a loyalty programme: tier name, requirement sentence, what it opens, the
+   current tier marked with the gold rule; achievements as a two-column list of small stamp-like
+   marks (earned ones inked, unearned outlined) with name and one-line description, grouped by
+   category with a plain heading. No badges, no grid of cards.
+3. **Hangar → the fleet sheet.** A fact sheet per aircraft, like an airline's fleet page: the type
+   name large, family, a side-profile silhouette drawn as a simple SVG per family (regional,
+   narrowbody, widebody twin, widebody quad), the cabin layout as the existing seat map, and the
+   airlines that fly it in the sample catalogue. Types are chosen from a plain list at the left on
+   desktop, a select on phones. Airline unlock tiers move to Rewards as part of the ladder.
+4. **Settings → a preferences page in prose.** Short sections, each a sentence or two with its
+   controls inline ("Times are shown in Asia/Singapore. Change"), no form grid, no admin
+   headings. Appearance, sound, lighting, announcements, breaks, privacy, notifications, account.
+5. **Search results → a departures board.** Fixed columns in board order (Time, Flight, To, Via,
+   Duration, Lands, Status), tabular numerals, a thin rule per row, Community Flights marked in the
+   Status column, locked airlines greyed with "Locked"; the Book action as a text link at the row
+   end. Itinerary rows keep the chain in the "Via" column.
+
+### Item 2 — Artefacts
+
+6. **Passport data page.** Opening the book shows the data page first: the cover colour as the
+   page's border tint, "Aerofocus Airlines Virtual passport", holder name (or "Guest passenger"),
+   member number, date of first flight, a small plane emblem, and the machine-readable zone drawn
+   as two lines of `<`-filled text from the name and number (decorative, labelled). Then the stamp
+   pages.
+7. **Journey legs use the real pass strip.** The journey page's per-leg rows use the compact
+   strip of the real boarding pass (airline strip, codes, flight, seat, gate), not the old card.
+8. **Arrival stamp on the page.** The arrival screen shows the stamp placed on a passport page
+   excerpt (paper, faint pattern, one or two earlier stamps faded) rather than floating.
+
+### Verify
+
+Screenshots light and dark, 1280 and 375, of Profile, Rewards, Hangar, Settings, Search results,
+Passport (data page and stamps), Journey, Arrival; axe zero violations; typecheck, tests, build.
+
+### Status (12 October 2026, Phase 9)
+
+Items 1 and 2 are built: Profile as a frequent-flyer card with a prose flying record, Membership as
+a tier booklet with inked achievement marks, Fleet as fact sheets with silhouettes and cabin plans,
+Settings as a preferences page in prose, search results as a departures board; the passport opens
+on a data page with a decorative machine-readable zone, journey legs use the real pass strip, and
+the arrival stamp is pressed onto a passport page excerpt. The theme crossfade now starts after
+first paint. Typecheck, tests and build pass; axe is clean on search, membership, settings and
+passport. Not seen live: an earned achievement mark, a gold-tier card, and the signed-in arrival
+page with earlier stamps.

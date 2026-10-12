@@ -29,17 +29,24 @@
   margin: 0;
   max-width: none;
 }
+/* Leg rows: the compact pass strip (Phase 9 item 7). The strip and the chain's layover block that
+   follows it share one width so their left and right edges line up. */
 .journey-leg {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  max-width: 560px;
+  max-width: 760px;
+}
+.jchain-custom:has(.journey-leg) + .jchain-layover {
+  max-width: 760px;
+  margin-top: var(--s-2);
 }
 .journey-leg-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--s-3);
+  padding: 0 2px;
 }
 .journey-leg-status {
   font-weight: 600;

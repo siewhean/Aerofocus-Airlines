@@ -7,6 +7,9 @@ import "./styles/global.css";
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing #root");
 
+// Enable the theme crossfade one frame after the first paint (see global.css).
+requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.add("is-ready")));
+
 createRoot(root).render(
   <StrictMode>
     <BrowserRouter>

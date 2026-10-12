@@ -1,78 +1,77 @@
-.ladder {
+.membership {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+}
+.tiers,
+.achievements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.tiers h2,
+.achievements h2 {
+  font-size: var(--fs-3);
+}
+
+/* The tiers page: one column, a rule between tiers, the current one carried by the gold rule. */
+.tier-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  max-width: 640px;
+  border-top: 1px solid var(--line);
+}
+.tier {
   display: flex;
   flex-direction: column;
-  max-width: 640px;
-}
-.ladder-step {
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: var(--s-3);
-  padding: var(--s-3) 0;
+  gap: var(--s-1);
+  padding: var(--s-4) 0 var(--s-4) var(--s-4);
   border-bottom: 1px solid var(--line);
-  position: relative;
+  border-left: 3px solid transparent;
 }
-.ladder-step::before {
-  content: "";
-  position: absolute;
-  left: 9px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--line);
+.tier.is-current {
+  border-left-color: var(--premium);
 }
-.ladder-step:first-child::before {
-  top: 50%;
-}
-.ladder-step:last-child::before {
-  bottom: 50%;
-}
-.ladder-dot {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  background: var(--bg);
-  align-self: center;
-  z-index: 1;
-}
-.ladder-step.is-reached .ladder-dot {
-  background: var(--signal);
-  border-color: var(--signal);
-}
-.ladder-step.is-current .ladder-dot {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.ladder-step.is-ahead .ladder-text,
-.ladder-step.is-next .ladder-text {
+.tier.is-ahead {
   color: var(--text-2);
 }
-.ladder-step.is-next .ladder-missing {
-  color: var(--text);
-}
-.ladder-text {
+.tier-head {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.ladder-title {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  align-items: baseline;
+  gap: var(--s-3);
   flex-wrap: wrap;
 }
-.ladder-name {
-  font-weight: 600;
+.tier-name {
   font-size: var(--fs-2);
-  color: var(--text);
+  font-weight: 600;
 }
-.ladder-step.is-ahead .ladder-name {
+.tier.is-ahead .tier-name {
   color: var(--text-2);
 }
+.tier-yours {
+  color: var(--premium);
+  font-weight: 600;
+  font-size: var(--fs-0);
+}
+.tier-line {
+  max-width: var(--measure);
+  font-size: var(--fs-1);
+}
+.tier.is-ahead .tier-line {
+  color: var(--text-2);
+}
+.tier-missing {
+  color: var(--text);
+}
 
+.ach-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
 .ach-group {
   display: flex;
   flex-direction: column;
@@ -80,11 +79,51 @@
 }
 .ach-group h3 {
   font-size: var(--fs-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+}
+.ach-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4) var(--s-6);
+}
+.ach {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: center;
+  padding: var(--s-2) 0;
+}
+.ach-mark {
+  display: block;
+  flex: none;
+}
+.ach-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .ach-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
   font-weight: 600;
-  flex-wrap: wrap;
+}
+.ach.is-outlined .ach-name {
+  color: var(--text-2);
+}
+.ach-desc {
+  color: var(--text-2);
+}
+.ach-when {
+  color: var(--text-3);
+}
+.ach.is-earned .ach-when {
+  color: var(--premium);
+}
+@media (max-width: 700px) {
+  .ach-list {
+    grid-template-columns: 1fr;
+  }
 }

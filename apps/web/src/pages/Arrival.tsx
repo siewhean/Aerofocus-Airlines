@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Page } from "../app/Shell";
 import { Segmented } from "../components/FlightControls";
-import { Stamp } from "../components/Stamp";
+import { Stamp, type StampMark } from "../components/Stamp";
 import { errorMessage } from "../lib/api";
 import { apiExt, type HistoryItem } from "../lib/api-ext";
 import { airportView } from "../lib/flights";
@@ -76,6 +76,8 @@ export default function Arrival() {
   const [confirmed, setConfirmed] = useState<Set<number>>(() => new Set());
   const [goal, setGoal] = useState<"yes" | "no" | null>(null);
   const [journey, setJourney] = useState<{ itinerary: Itinerary; legIndex: number } | null>(null);
+  /** One or two earlier marks, shown faded on the page excerpt behind the new stamp (Phase 9 item 8). */
+  const [prior, setPrior] = useState<StampMark[]>([]);
   const expired = useRef(false);
 
   const plan = loaded?.plan ?? null;
@@ -223,6 +225,45 @@ export default function Arrival() {
       cancelled = true;
     };
   }, [final, view]);
+
+  // Earlier stamps for the page excerpt: the last two completed flights before this one, from the
+  // user's history (apiExt.history) or the guest history on the device. None is fine.
+  useEffect(() => {
+    if (!final || final.outcome !== "complete") {
+      setPrior([]);
+      return;
+    }
+    const s = sessionRef.current;
+    const isThis = (arrival: number, sid?: string) => arrival === final.arrival || (sessionId !== null && sid === sessionId);
+    if (s.mode === "guest") {
+      const marks: StampMark[] = s.guest
+        .load()
+        .history.filter((r) => r.outcome === "complete" && !isThis(r.arrival))
+        .slice(-2)
+        .reverse()
+        .map((r) => ({ id: `guest-${r.snapshotId}-${r.arrival}`, country: r.destinationCountry, airport: r.destination, arrivalDate: r.arrival }));
+      setPrior(marks);
+      return;
+    }
+    let cancelled = false;
+    apiExt
+      .history(3)
+      .then(({ flights }) => {
+        if (cancelled) return;
+        const marks: StampMark[] = [];
+        for (const f of flights) {
+          const tm = f.travelMark;
+          if (f.status !== "complete" || !tm || isThis(f.arrival, f.sessionId)) continue;
+          marks.push({ id: tm.id, country: tm.country, airport: tm.airport, arrivalDate: tm.arrivalDate, isTransit: tm.isTransit ?? false, visitNumber: tm.visitNumber ?? null });
+          if (marks.length === 2) break;
+        }
+        setPrior(marks);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [final, sessionId]);
 
   const validate = async () => {
     if (!sessionId || !view) return;
@@ -407,8 +448,19 @@ export default function Arrival() {
             </p>
           )}
         </header>
-        <figure className={`stamp ${reduced ? "is-reduced" : ""}`}>
-          <Stamp mark={{ id: sessionId ?? `arrival-${final.arrival}`, country: final.destination.country, airport: final.destination.iata, arrivalDate: final.arrival, isTransit: transit }} timeZone={timeZone} size={220} />
+        <figure className={`arrival-page ${reduced ? "is-reduced" : ""}`}>
+          {/* A passport page excerpt: paper, the faint security print, earlier stamps faded, the new
+              one pressed on at a slight offset. Earlier stamps are context and hidden from readers. */}
+          <div className="arrival-page-paper">
+            {prior.map((m, i) => (
+              <div key={m.id} className={`arrival-page-prior arrival-page-prior-${i + 1}`} aria-hidden="true">
+                <Stamp mark={m} timeZone={timeZone} size={170} />
+              </div>
+            ))}
+            <div className="arrival-page-new">
+              <Stamp mark={{ id: sessionId ?? `arrival-${final.arrival}`, country: final.destination.country, airport: final.destination.iata, arrivalDate: final.arrival, isTransit: transit }} timeZone={timeZone} size={220} />
+            </div>
+          </div>
           <figcaption className="small muted arrival-stamp-caption">
             {transit && <Badge tone="geo">Transit</Badge>}
             <span>{transit ? "Transit record" : "Virtual arrival record"}, not an immigration stamp</span>

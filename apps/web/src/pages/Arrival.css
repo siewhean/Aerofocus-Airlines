@@ -112,63 +112,84 @@
   border-top: 1px solid var(--line);
 }
 
-/* The arrival stamp: a dashed gold ring, drawn in CSS (FR-048). */
-.stamp {
+/* The arrival stamp on a passport page excerpt (Phase 9 item 8). The paper and its print match the
+   passport book's pages; the panel keeps its colours in dark mode and sits on a soft shadow. */
+.arrival-page {
   margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--s-3);
 }
-.stamp-ring {
-  width: min(260px, 70vw);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  border: 3px dashed var(--gold);
-  box-shadow: inset 0 0 0 6px var(--bg), inset 0 0 0 8px color-mix(in srgb, var(--gold) 55%, transparent);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s-1);
-  color: var(--gold);
-  transform: rotate(-8deg);
-  animation: stamp-in 600ms var(--ease) both;
-  animation-delay: 150ms;
+.arrival-page-paper {
+  --paper: #f4f1e8;
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 4 / 3;
+  border-radius: 4px 10px 10px 4px;
+  background-color: var(--paper);
+  background-image: repeating-radial-gradient(circle at 50% 50%, rgba(27, 34, 48, 0.03) 0 1px, transparent 1px 7px);
+  box-shadow: var(--shadow-pass, 0 1px 0 rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6));
+  overflow: hidden;
 }
-.stamp.is-reduced .stamp-ring {
+/* Gutter shadow along the inner edge, as on the book's right-hand page. */
+.arrival-page-paper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(27, 34, 48, 0.11), rgba(27, 34, 48, 0.03) 5%, transparent 12%);
+}
+.arrival-page-paper .stamp-svg {
+  mix-blend-mode: multiply;
+  height: auto;
+}
+.arrival-page-prior,
+.arrival-page-new {
+  position: absolute;
+}
+.arrival-page-prior {
+  opacity: 0.35;
+}
+.arrival-page-prior .stamp-svg {
+  width: 100%;
+}
+.arrival-page-prior-1 {
+  width: 40%;
+  left: 7%;
+  top: 6%;
+}
+.arrival-page-prior-2 {
+  width: 38%;
+  right: 5%;
+  bottom: 7%;
+}
+.arrival-page-new {
+  width: 54%;
+  left: 29%;
+  top: 27%;
+  z-index: 1;
+  animation: arrival-press 320ms var(--ease) both;
+}
+.arrival-page-new .stamp-svg {
+  width: 100%;
+}
+.arrival-page.is-reduced .arrival-page-new {
   animation: none;
 }
-.stamp-code {
-  font-size: clamp(3rem, 14vw, 4.5rem);
-  letter-spacing: 0.02em;
-}
-.stamp-country {
-  font-weight: 600;
-  font-size: var(--fs-1);
-  text-align: center;
-  padding: 0 var(--s-4);
-}
-.stamp-date {
-  font-size: var(--fs-0);
-  color: color-mix(in srgb, var(--gold) 80%, var(--text));
-}
-@keyframes stamp-in {
+@keyframes arrival-press {
   from {
-    opacity: 0;
-    transform: rotate(-8deg) scale(1.6);
-  }
-  60% {
-    opacity: 1;
-    transform: rotate(-8deg) scale(0.96);
+    transform: scale(1.08);
+    opacity: 0.4;
   }
   to {
+    transform: none;
     opacity: 1;
-    transform: rotate(-8deg) scale(1);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .stamp-ring {
+  .arrival-page-new {
     animation: none;
   }
 }

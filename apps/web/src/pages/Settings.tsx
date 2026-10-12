@@ -1,6 +1,11 @@
+/**
+ * Preferences written as prose (docs/UI-PLAN.md Phase 9, item 4): short sections, each a sentence
+ * or two with its controls inline. Everything saves as it changes; server-backed settings confirm
+ * with a toast, device preferences apply at once.
+ */
 import { DEFAULT_BREAK_SCHEDULE, type BreakSchedule } from "@aerofocus/core";
 import type { AirportView } from "@aerofocus/client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Page } from "../app/Shell";
 import { BreakScheduleFields } from "../components/BreakScheduleFields";
@@ -10,7 +15,7 @@ import { browserTimeZone, formatDate } from "../lib/format";
 import { notificationPermission, requestNotificationPermission } from "../lib/notify";
 import type { UiPreferences } from "../lib/prefs";
 import { useSession, writeLocal } from "../lib/session";
-import { Button, Dialog, Field, Input, Notice, Section, Select, Slider, Textarea, Toggle, useToast } from "../ui";
+import { Button, Dialog, Field, Input, Select, Slider, Textarea, Toggle, useToast } from "../ui";
 import "./Settings.css";
 
 const COMMON_ZONES = [
@@ -53,11 +58,28 @@ const COMMON_ZONES = [
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
+const APPEARANCE: { value: UiPreferences["appearance"]; label: string }[] = [
+  { value: "system", label: "Follow the system" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
 function AccountNote({ what }: { what: string }) {
   return (
-    <p className="small muted">
+    <p className="prefs-note small muted">
       {what} needs an account. <Link to="/account/sign-in">Create one</Link> to save it.
     </p>
+  );
+}
+
+/** A section of the preferences page: a plain heading and prose. */
+function Prefs({ title, children }: { title: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <section className="prefs" aria-labelledby={id}>
+      <h2 id={id}>{title}</h2>
+      <div className="prefs-body">{children}</div>
+    </section>
   );
 }
 
@@ -171,80 +193,151 @@ export default function Settings() {
   const guestJson = useMemo(() => (exportOpen ? JSON.stringify(session.guest.load(), null, 2) : ""), [exportOpen, session.guest]);
 
   const permissionCopy =
-    permission === "unsupported" ? "This browser does not support notifications." : permission === "granted" ? "Browser notifications are allowed." : permission === "denied" ? "Browser notifications are blocked. Change this in your browser settings." : "Browser notifications have not been allowed yet.";
+    permission === "unsupported" ? "This browser does not support notifications." : permission === "granted" ? "This browser allows notifications." : permission === "denied" ? "This browser blocks notifications; change that in its site settings." : "This browser has not been asked yet.";
+
+  const nameId = useId();
+  const zoneId = useId();
+  const homeId = useId();
+  const announceId = useId();
+  const graphicsId = useId();
+  const channelId = useId();
+  const hasGuestData = Boolean(session.guestState && (session.guestState.history.length > 0 || session.guestState.booking || session.guestState.session));
 
   return (
-    <Page title="Settings" lead="Changes save as you make them.">
-      <div className="settings">
-        <Section title="Profile">
+    <Page title="Settings" lead="Your preferences, in a few sentences. Changes save as you make them.">
+      <div className="prefs-page">
+        <Prefs title="Passenger">
           {isUser ? (
-            <div className="settings-grid">
-              <Field label="Display name" hint="Shown on your profile. Leave blank to use your email.">
-                {(id, describedBy) => (
-                  <Input
-                    id={id}
-                    aria-describedby={describedBy}
-                    type="text"
-                    maxLength={60}
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    onBlur={() => {
-                      const next = displayName.trim() || null;
-                      if (next !== (settings?.displayName ?? null)) void save({ displayName: next });
-                    }}
-                  />
-                )}
-              </Field>
-              <Field label="Time zone" hint="All times in the app are shown in this zone.">
-                {(id, describedBy) => (
-                  <Select
-                    id={id}
-                    aria-describedby={describedBy}
-                    value={settings?.timeZone ?? deviceZone}
-                    onChange={(e) => {
-                      const v = e.target.value === "__device" ? deviceZone : e.target.value;
-                      void save({ timeZone: v });
-                    }}
-                  >
-                    <option value="__device">Use my device ({deviceZone})</option>
-                    {zoneOptions.map((z) => (
-                      <option key={z} value={z}>
-                        {z.replaceAll("_", " ")}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Field>
-            </div>
+            <>
+              <p className="prefs-line">
+                <label htmlFor={nameId}>The name on your boarding pass is</label>{" "}
+                <Input
+                  id={nameId}
+                  type="text"
+                  maxLength={60}
+                  className="prefs-inline-input"
+                  placeholder={session.user?.email ?? ""}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  onBlur={() => {
+                    const next = displayName.trim() || null;
+                    if (next !== (settings?.displayName ?? null)) void save({ displayName: next });
+                  }}
+                />
+                . Leave it blank to use your email.
+              </p>
+              <p className="prefs-line">
+                <label htmlFor={zoneId}>Times are shown in</label>{" "}
+                <Select
+                  id={zoneId}
+                  className="prefs-inline-select"
+                  value={settings?.timeZone ?? deviceZone}
+                  onChange={(e) => {
+                    const v = e.target.value === "__device" ? deviceZone : e.target.value;
+                    void save({ timeZone: v });
+                  }}
+                >
+                  <option value="__device">my device zone ({deviceZone})</option>
+                  {zoneOptions.map((z) => (
+                    <option key={z} value={z}>
+                      {z.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </Select>
+                .
+              </p>
+            </>
           ) : (
             <>
-              <p className="small muted">Times are shown in your device zone, {deviceZone}.</p>
+              <p className="prefs-line">Times are shown in your device zone, {deviceZone}.</p>
               <AccountNote what="A display name or a different time zone" />
             </>
           )}
-          <Field label="Home airport" hint="Searches start here by default.">
-            {(id, describedBy) => (
-              <Select id={id} aria-describedby={describedBy} value={session.homeAirport ?? ""} onChange={(e) => void onHomeAirport(e.target.value)} disabled={airports === null}>
-                <option value="">Not set</option>
-                {(airports ?? []).map((a) => (
-                  <option key={a.iata} value={a.iata}>
-                    {a.city} ({a.iata}) – {a.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-        </Section>
-
-        <Section title="Passport colour">
-          <p>
-            Choose the cover on the <Link to="/collection/passport">passport page</Link>. Changing it never alters earned marks.
+          <p className="prefs-line">
+            <label htmlFor={homeId}>Searches start from</label>{" "}
+            <Select id={homeId} className="prefs-inline-select" value={session.homeAirport ?? ""} onChange={(e) => void onHomeAirport(e.target.value)} disabled={airports === null}>
+              <option value="">anywhere</option>
+              {(airports ?? []).map((a) => (
+                <option key={a.iata} value={a.iata}>
+                  {a.city} ({a.iata})
+                </option>
+              ))}
+            </Select>
+            .
           </p>
-        </Section>
+          <p className="prefs-line">
+            The cover colour of your passport is chosen on the <Link to="/collection/passport">passport page</Link>; changing it never alters earned stamps.
+          </p>
+        </Prefs>
 
-        <Section title="Breaks">
+        <Prefs title="Appearance">
+          <p className="prefs-line">The ground pages can follow your device or stay light or dark. The cabin is always night-lit.</p>
+          <div className="prefs-segmented" role="group" aria-label="Appearance">
+            {APPEARANCE.map((o) => {
+              const active = prefs.appearance === o.value;
+              return (
+                <button key={o.value} type="button" className={`prefs-segment ${active ? "is-active" : ""}`} aria-pressed={active} onClick={() => setPrefs({ appearance: o.value })}>
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="prefs-line">
+            <label htmlFor={graphicsId}>Graphics quality is</label>{" "}
+            <Select id={graphicsId} className="prefs-inline-select" value={prefs.graphics} onChange={(e) => setPrefs({ graphics: e.target.value as UiPreferences["graphics"] })}>
+              <option value="auto">automatic</option>
+              <option value="high">high</option>
+              <option value="low">low</option>
+            </Select>
+            . Automatic follows your device and battery.
+          </p>
+        </Prefs>
+
+        <Prefs title="Sound">
+          <p className="prefs-line">The cabin has an engine bed, ventilation, other passengers, announcements and chimes. Each has its own level.</p>
+          <div className="prefs-toggles">
+            <Toggle label="Mute all sound" checked={prefs.audio.muted} onChange={(v) => setAudio({ muted: v })} />
+          </div>
+          <div className={`prefs-sliders ${prefs.audio.muted ? "is-muted" : ""}`}>
+            <Slider label="Master" value={prefs.audio.master} onChange={(v) => setAudio({ master: v })} format={pct} />
+            <Slider label="Engine" value={prefs.audio.engine} onChange={(v) => setAudio({ engine: v })} format={pct} />
+            <Slider label="Ventilation" value={prefs.audio.ventilation} onChange={(v) => setAudio({ ventilation: v })} format={pct} />
+            <Slider label="Passengers" value={prefs.audio.passengers} onChange={(v) => setAudio({ passengers: v })} format={pct} />
+            <Slider label="Voice" value={prefs.audio.voice} onChange={(v) => setAudio({ voice: v })} format={pct} />
+            <Slider label="Music" value={prefs.audio.music} onChange={(v) => setAudio({ music: v })} format={pct} />
+            <Slider label="Notifications" value={prefs.audio.notifications} onChange={(v) => setAudio({ notifications: v })} format={pct} />
+            <Slider label="Effects" value={prefs.audio.effects} onChange={(v) => setAudio({ effects: v })} format={pct} />
+          </div>
+        </Prefs>
+
+        <Prefs title="Lighting">
+          <p className="prefs-line">The reading light above your seat can stay on, and the cabin and interface each have their own brightness.</p>
+          <div className="prefs-toggles">
+            <Toggle label="Reading light" checked={prefs.lighting.readingLight} onChange={(v) => setLighting({ readingLight: v })} />
+            <Toggle label="Reduced effects" hint="Fewer cloud layers and transitions in the cabin." checked={prefs.lighting.reducedEffects} onChange={(v) => setLighting({ reducedEffects: v })} />
+          </div>
+          <div className="prefs-sliders">
+            <Slider label="Cabin brightness" value={prefs.lighting.cabinBrightness} onChange={(v) => setLighting({ cabinBrightness: v })} format={pct} />
+            <Slider label="Interface brightness" min={0.5} max={1} value={prefs.lighting.interfaceBrightness} onChange={(v) => setLighting({ interfaceBrightness: v })} format={pct} />
+          </div>
+        </Prefs>
+
+        <Prefs title="Announcements">
+          <p className="prefs-line">
+            <label htmlFor={announceId}>Cabin announcements are</label>{" "}
+            <Select id={announceId} className="prefs-inline-select" value={prefs.announcements} onChange={(e) => setPrefs({ announcements: e.target.value as UiPreferences["announcements"] })}>
+              <option value="full">played in full</option>
+              <option value="essential">essential only</option>
+              <option value="captions">captions only</option>
+            </Select>
+            . Captions show the text without playing audio.
+          </p>
+        </Prefs>
+
+        <Prefs title="Breaks">
           {isUser ? (
             <>
+              <p className="prefs-line">Your usual rhythm, offered first when you book. You can still change it for each flight.</p>
               <BreakScheduleFields value={breaks} onChange={setBreaks} presets={presets} />
               <div>
                 <Button variant="primary" onClick={() => void save({ breakSchedule: breaks })} disabled={settings ? sameBreaks(breaks, settings.breakSchedule) : false}>
@@ -254,137 +347,89 @@ export default function Settings() {
             </>
           ) : (
             <>
-              <p className="small muted">You can still set a break rhythm for each flight when you book it.</p>
+              <p className="prefs-line">You can set a break rhythm for each flight when you book it.</p>
               <AccountNote what="A saved break default" />
             </>
           )}
-        </Section>
+        </Prefs>
 
-        <Section title="Audio">
-          <Toggle label="Mute all sound" checked={prefs.audio.muted} onChange={(v) => setAudio({ muted: v })} />
-          <Slider label="Master" value={prefs.audio.master} onChange={(v) => setAudio({ master: v })} format={pct} />
-          <Slider label="Engine" value={prefs.audio.engine} onChange={(v) => setAudio({ engine: v })} format={pct} />
-          <Slider label="Ventilation" value={prefs.audio.ventilation} onChange={(v) => setAudio({ ventilation: v })} format={pct} />
-          <Slider label="Passengers" value={prefs.audio.passengers} onChange={(v) => setAudio({ passengers: v })} format={pct} />
-          <Slider label="Voice" value={prefs.audio.voice} onChange={(v) => setAudio({ voice: v })} format={pct} />
-          <Slider label="Music" value={prefs.audio.music} onChange={(v) => setAudio({ music: v })} format={pct} />
-          <Slider label="Notifications" value={prefs.audio.notifications} onChange={(v) => setAudio({ notifications: v })} format={pct} />
-          <Slider label="Effects" value={prefs.audio.effects} onChange={(v) => setAudio({ effects: v })} format={pct} />
-        </Section>
-
-        <Section title="Lighting">
-          <Toggle label="Reading light" checked={prefs.lighting.readingLight} onChange={(v) => setLighting({ readingLight: v })} />
-          <Toggle label="Reduced effects" hint="Fewer cloud layers and transitions in the cabin." checked={prefs.lighting.reducedEffects} onChange={(v) => setLighting({ reducedEffects: v })} />
-          <Slider label="Cabin brightness" value={prefs.lighting.cabinBrightness} onChange={(v) => setLighting({ cabinBrightness: v })} format={pct} />
-          <Slider label="Interface brightness" min={0.5} max={1} value={prefs.lighting.interfaceBrightness} onChange={(v) => setLighting({ interfaceBrightness: v })} format={pct} />
-        </Section>
-
-        <Section title="Announcements">
-          <Field label="Cabin announcements" hint="Captions show the text without playing audio.">
-            {(id, describedBy) => (
-              <Select id={id} aria-describedby={describedBy} value={prefs.announcements} onChange={(e) => setPrefs({ announcements: e.target.value as UiPreferences["announcements"] })}>
-                <option value="full">Full</option>
-                <option value="essential">Essential only</option>
-                <option value="captions">Captions only</option>
-              </Select>
+        <Prefs title="Privacy">
+          <p className="prefs-line">Shared flights appear as an anonymous position on the community map. Hiding other passengers never affects your own flight.</p>
+          <div className="prefs-toggles">
+            {isUser && settings ? (
+              <>
+                <Toggle label="Share my flights by default" hint="You can change this per flight." checked={settings.shareFlightsByDefault} onChange={(v) => void save({ shareFlightsByDefault: v })} />
+                <Toggle label="Show other passengers' flights" checked={settings.showCommunityFlights} onChange={(v) => void save({ showCommunityFlights: v })} />
+              </>
+            ) : (
+              <Toggle label="Show other passengers' flights" checked={prefs.showOtherFlights} onChange={(v) => setPrefs({ showOtherFlights: v })} />
             )}
-          </Field>
-        </Section>
+          </div>
+          {!isUser && <AccountNote what="Sharing your own flights" />}
+        </Prefs>
 
-        <Section title="Appearance">
-          <Field label="Dark mode" hint="System follows your device. The cabin is always night-lit.">
-            {(id, describedBy) => (
-              <Select id={id} aria-describedby={describedBy} value={prefs.appearance} onChange={(e) => setPrefs({ appearance: e.target.value as UiPreferences["appearance"] })}>
-                <option value="system">Follow the system</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </Select>
-            )}
-          </Field>
-        </Section>
-
-        <Section title="Graphics">
-          <Field label="Graphics quality" hint="Auto follows your device and battery.">
-            {(id, describedBy) => (
-              <Select id={id} aria-describedby={describedBy} value={prefs.graphics} onChange={(e) => setPrefs({ graphics: e.target.value as UiPreferences["graphics"] })}>
-                <option value="auto">Auto</option>
-                <option value="high">High</option>
-                <option value="low">Low</option>
-              </Select>
-            )}
-          </Field>
-        </Section>
-
-        <Section title="Community privacy">
+        <Prefs title="Notifications">
           {isUser && settings ? (
             <>
-              <Toggle label="Share my flights by default" hint="Shows an anonymous position on the community map. You can change this per flight." checked={settings.shareFlightsByDefault} onChange={(v) => void save({ shareFlightsByDefault: v })} />
-              <Toggle label="Show other passengers' flights" hint="Hiding them never affects your own flight." checked={settings.showCommunityFlights} onChange={(v) => void save({ showCommunityFlights: v })} />
-            </>
-          ) : (
-            <>
-              <Toggle label="Show other passengers' flights" hint="Hiding them never affects your own flight." checked={prefs.showOtherFlights} onChange={(v) => setPrefs({ showOtherFlights: v })} />
-              <AccountNote what="Sharing your own flights" />
-            </>
-          )}
-        </Section>
-
-        <Section title="Notifications">
-          {isUser && settings ? (
-            <>
-              <Toggle label="Boarding reminder" checked={settings.notifications.boardingReminder} onChange={(v) => void save({ notifications: { ...settings.notifications, boardingReminder: v } })} />
-              <Toggle label="Break ending" checked={settings.notifications.breakEnd} onChange={(v) => void save({ notifications: { ...settings.notifications, breakEnd: v } })} />
-              <Toggle label="Landing" checked={settings.notifications.landing} onChange={(v) => void save({ notifications: { ...settings.notifications, landing: v } })} />
-              <Field label="Channel">
-                {(id) => (
-                  <Select id={id} value={settings.notifications.channel} onChange={(e) => void save({ notifications: { ...settings.notifications, channel: e.target.value as SettingsView["notifications"]["channel"] } })}>
-                    <option value="push">Browser notification</option>
-                    <option value="sound">Sound</option>
-                    <option value="both">Both</option>
-                    <option value="none">None</option>
-                  </Select>
-                )}
-              </Field>
+              <p className="prefs-line">
+                <label htmlFor={channelId}>Reminders arrive as</label>{" "}
+                <Select id={channelId} className="prefs-inline-select" value={settings.notifications.channel} onChange={(e) => void save({ notifications: { ...settings.notifications, channel: e.target.value as SettingsView["notifications"]["channel"] } })}>
+                  <option value="push">a browser notification</option>
+                  <option value="sound">a sound</option>
+                  <option value="both">a notification and a sound</option>
+                  <option value="none">nothing</option>
+                </Select>
+                .
+              </p>
+              <div className="prefs-toggles">
+                <Toggle label="Boarding reminder" checked={settings.notifications.boardingReminder} onChange={(v) => void save({ notifications: { ...settings.notifications, boardingReminder: v } })} />
+                <Toggle label="Break ending" checked={settings.notifications.breakEnd} onChange={(v) => void save({ notifications: { ...settings.notifications, breakEnd: v } })} />
+                <Toggle label="Landing" checked={settings.notifications.landing} onChange={(v) => void save({ notifications: { ...settings.notifications, landing: v } })} />
+              </div>
             </>
           ) : (
             <AccountNote what="Choosing which reminders you get" />
           )}
-          <div className="settings-inline">
-            <Button variant="secondary" onClick={() => void allowNotifications()} disabled={permission === "granted" || permission === "unsupported" || permission === "denied"}>
-              Allow browser notifications
-            </Button>
-            <span className="small muted">{permissionCopy}</span>
-          </div>
-        </Section>
+          <p className="prefs-line prefs-inline">
+            <span>{permissionCopy}</span>
+            {permission === "default" && (
+              <Button variant="secondary" size="sm" onClick={() => void allowNotifications()}>
+                Allow browser notifications
+              </Button>
+            )}
+          </p>
+        </Prefs>
 
-        <Section title="Account">
+        <Prefs title="Account">
           {isUser ? (
-            <div className="settings-inline">
-              <Button variant="secondary" onClick={() => void signOut()} busy={leaving}>
+            <p className="prefs-line prefs-inline">
+              <span>Signed in as {session.user?.email}.</span>
+              <Button variant="quiet" onClick={() => void signOut()} busy={leaving}>
                 Sign out
               </Button>
-              <span className="small muted">Signed in as {session.user?.email}.</span>
-            </div>
+            </p>
           ) : (
             <>
-              <p className="small muted">Guest flights stay on this device until {formatDate(session.guest.expiresAt(), session.timeZone)}.</p>
-              <div className="settings-inline">
+              <p className="prefs-line">
+                Guest flights stay on this device until {formatDate(session.guest.expiresAt(), session.timeZone)}. <Link to="/account/sign-in">Create an account</Link> to keep them.
+              </p>
+              <div className="prefs-inline">
                 <Button variant="secondary" onClick={() => setExportOpen(true)}>
                   Export my guest data
                 </Button>
-                <Button variant="danger" onClick={() => setClearOpen(true)} disabled={!session.guestState || (session.guestState.history.length === 0 && !session.guestState.booking && !session.guestState.session)}>
+                <Button variant="danger" onClick={() => setClearOpen(true)} disabled={!hasGuestData}>
                   Clear guest data
                 </Button>
               </div>
             </>
           )}
-        </Section>
+        </Prefs>
       </div>
 
       <Dialog open={exportOpen} onClose={() => setExportOpen(false)} title="Your guest data" wide>
         <p className="small muted">Everything stored on this device. Copy it somewhere safe if you want a backup.</p>
         <Field label="Guest data (JSON)">
-          {(id) => <Textarea id={id} readOnly value={guestJson} rows={14} className="settings-export" onFocus={(e) => e.currentTarget.select()} />}
+          {(id) => <Textarea id={id} readOnly value={guestJson} rows={14} className="prefs-export" onFocus={(e) => e.currentTarget.select()} />}
         </Field>
       </Dialog>
 

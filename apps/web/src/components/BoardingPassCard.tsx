@@ -88,6 +88,8 @@ export function BoardingPassCard({ pass, now, compact }: Props) {
   const flightType = pass.flightType === "community" ? "Community Flight" : "Individual";
   const ariaLabel = `Boarding pass for flight ${pass.flightNumber}, ${pass.origin.iata} to ${pass.destination.iata}, ${date}, seat ${pass.seat.seat}, gate ${gate}. ${STATUS_LABEL[status]}.`;
 
+  // Compact: the pass as one strip for journey chains (Phase 9 item 7). The same paper and airline
+  // strip as the card; codes, then the core fields in pass order, the status tag at the end.
   if (compact) {
     return (
       <article className="bp bp-compact" aria-label={ariaLabel}>
@@ -103,18 +105,24 @@ export function BoardingPassCard({ pass, now, compact }: Props) {
             </span>
             <span className="code bp-compact-code">{pass.destination.iata}</span>
           </span>
-          <Field label="Flight">
-            <span className="code">{pass.flightNumber}</span>
-          </Field>
-          <Field label="Date">
-            <span className="numeral">{date}</span>
-          </Field>
-          <Field label="Seat">
-            <span className="code">{pass.seat.seat}</span>
-          </Field>
-          <Field label="Gate">
-            <span className="code">{gate}</span>
-          </Field>
+          <div className="bp-compact-fields">
+            <Field label="Flight">
+              <span className="code">{pass.flightNumber}</span>
+            </Field>
+            <Field label="Date">
+              <span className="numeral">{date}</span>
+            </Field>
+            <Field label="Departs">
+              <span className="numeral">{departs}</span>
+            </Field>
+            <Field label="Seat">
+              <span className="code">{pass.seat.seat}</span>
+            </Field>
+            <Field label="Gate">
+              <span className="code">{gate}</span>
+            </Field>
+            <Field label="Class">{cabinLabel(pass.cabin)}</Field>
+          </div>
           <StatusTag status={status} />
         </div>
       </article>

@@ -3,12 +3,12 @@ import { localParts, zonedToInstant, MINUTE, HOUR, type CabinClass } from "@aero
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Page } from "../app/Shell";
-import { ItineraryOffersBoard } from "../components/JourneyChain";
-import { FlightIdent, RouteCodes } from "../components/RouteCodes";
+import { chainFromOffer, JourneyChain, offerCabins } from "../components/JourneyChain";
 import { api, errorMessage } from "../lib/api";
 import { formatClock, formatDuration, formatRelativeDay, cabinLabel } from "../lib/format";
+import { bookJourneyHref } from "../lib/itineraries";
 import { useSession } from "../lib/session";
-import { Badge, Board, Button, Cell, Empty, Field, Icon, Input, Notice, SampleBadge, Section, Select, Skeleton } from "../ui";
+import { Board, Button, Cell, Empty, Field, Input, Notice, SampleBadge, Section, Select, Skeleton } from "../ui";
 import "./Search.css";
 
 const CABINS: CabinClass[] = ["economy", "premium_economy", "business", "first"];
@@ -383,91 +383,151 @@ export default function Search() {
               </span>
             </Notice>
           )}
-          {journeySearch ? (
-            loading && journeys === null ? (
-              <Skeleton lines={4} />
-            ) : journeys && journeys.length === 0 ? (
-              <Empty title="No journeys fit that window">Try a longer window, fewer connections, or a different route.</Empty>
-            ) : journeys ? (
-              <ItineraryOffersBoard offers={journeys} now={now} timeZone={tz} cabin={urlState.cabin} studyWindow={studyWindow} canBook={session.mode === "user"} caption="Journeys that fit your study window" />
-            ) : null
-          ) : loading && offers === null ? (
+          {(journeySearch ? loading && journeys === null : loading && offers === null) ? (
             <Skeleton lines={4} />
-          ) : offers && offers.length === 0 ? (
+          ) : journeySearch && journeys && journeys.length === 0 ? (
+            <Empty title="No journeys fit that window">Try a longer window, fewer connections, or a different route.</Empty>
+          ) : !journeySearch && offers && offers.length === 0 ? (
             <Empty title="No flights fit that window">Try a longer window, or a different departure airport.</Empty>
-          ) : offers ? (
-            <Board caption="Flights that fit your study window">
+          ) : (journeySearch ? journeys : offers) ? (
+            <div className="search-board">
+            <Board caption={journeySearch ? "Journeys that fit your study window" : "Flights that fit your study window"}>
               <thead>
                 <tr>
-                  <Cell head>Departs</Cell>
+                  <Cell head>Time</Cell>
                   <Cell head>Flight</Cell>
-                  <Cell head>Route</Cell>
-                  <Cell head>Aircraft</Cell>
+                  <Cell head>To</Cell>
+                  <Cell head>Via</Cell>
                   <Cell head num>Duration</Cell>
                   <Cell head num>Lands</Cell>
-                  <Cell head>Type</Cell>
-                  <Cell head>Cabins</Cell>
+                  <Cell head>Status</Cell>
                   <Cell head>
                     <span className="visually-hidden">Action</span>
                   </Cell>
                 </tr>
               </thead>
               <tbody>
-                {offers.map((o) => {
-                  const day = formatRelativeDay(o.departure, now, tz);
-                  const bookHref = `/fly/book/${encodeURIComponent(o.snapshotId)}?mode=${o.mode}&departure=${o.departure.epochMs}&cabin=${urlState.cabin}&start=${urlState.start}&end=${urlState.end}`;
-                  const lockReason = o.airline.locked ? "This airline is locked. Keep flying to unlock it." : "This flight cannot be booked right now.";
-                  return (
-                    <tr key={`${o.snapshotId}-${o.mode}-${o.departure.epochMs}`} className={o.airline.locked ? "is-locked" : undefined}>
-                      <Cell>
-                        <span className="search-time">
-                          <span className="numeral">{formatClock(o.departure, tz)}</span>
-                          {day !== "today" && <span className="muted small">{day}</span>}
-                        </span>
-                      </Cell>
-                      <Cell>
-                        <FlightIdent flightNumber={o.flightNumber} airline={o.airline.name} locked={o.airline.locked} />
-                      </Cell>
-                      <Cell>
-                        <RouteCodes origin={o.origin} destination={o.destination} cities />
-                      </Cell>
-                      <Cell>{o.aircraft.known ? o.aircraft.name : <span className="muted">Aircraft not confirmed</span>}</Cell>
-                      <Cell num>
-                        <span className="numeral">{formatDuration(o.blockMs)}</span>
-                      </Cell>
-                      <Cell num>
-                        <span className="numeral">{formatClock(o.arrival, tz)}</span>
-                      </Cell>
-                      <Cell>{o.mode === "community" ? <Badge tone="geo">Community Flight</Badge> : "Individual"}</Cell>
-                      <Cell>
-                        <span className="search-cabins">
-                          {o.cabins.map((c, i) => (
-                            <span key={c.cabin} className={c.locked ? "search-cabin-locked" : undefined}>
-                              {c.locked && <Icon name="lock" size={12} title="Locked" />}
-                              {cabinLabel(c.cabin)}
-                              {i < o.cabins.length - 1 ? "," : ""}
+                {journeySearch && journeys
+                  ? journeys.map((o) => {
+                      const key = `${o.mode}-${o.legs.map((l) => l.snapshotId).join("+")}-${o.departure.epochMs}`;
+                      const day = formatRelativeDay(o.departure, now, tz);
+                      const chain = chainFromOffer(o);
+                      const first = o.legs[0]!;
+                      const last = o.legs[o.legs.length - 1]!;
+                      const cabins = offerCabins(o);
+                      const anyLocked = o.legs.some((l) => l.airline.locked);
+                      // Same choice as the shared itinerary board: the searched cabin, else the first unlocked one.
+                      const chosen = cabins.find((c) => c.cabin === urlState.cabin) ?? cabins.find((c) => !c.locked) ?? cabins[0];
+                      const canBook = session.mode === "user";
+                      const bookable = canBook && o.bookable && !anyLocked && chosen !== undefined && !chosen.locked;
+                      const airlines = [...new Set(o.legs.map((l) => l.airline.name))];
+                      return (
+                        <tr key={key} className={anyLocked ? "is-locked" : undefined}>
+                          <Cell>
+                            <span className="search-time">
+                              <span className="numeral">{formatClock(o.departure, tz)}</span>
+                              {day !== "today" && <span className="muted small">{day}</span>}
                             </span>
-                          ))}
-                        </span>
-                      </Cell>
-                      <Cell num>
-                        <span className="search-action">
-                          {o.bookable ? (
-                            <Button variant="primary" size="sm" to={bookHref}>
-                              Book
-                            </Button>
-                          ) : (
-                            <Button variant="primary" size="sm" disabled title={lockReason}>
-                              Book
-                            </Button>
-                          )}
-                        </span>
-                      </Cell>
-                    </tr>
-                  );
-                })}
+                          </Cell>
+                          <Cell>
+                            <span className="search-flight">
+                              <span className="code">{first.flightNumber}</span>
+                              <span className="small muted">{o.legs.length > 1 ? `${o.legs.length} legs, ${airlines.join(", ")}` : airlines.join(", ")}</span>
+                            </span>
+                          </Cell>
+                          <Cell>
+                            <span className="search-to">
+                              <span>{last.destination.city}</span>
+                              <span className="code">{last.destination.iata}</span>
+                            </span>
+                          </Cell>
+                          <Cell>
+                            {o.direct ? <span className="muted">Direct</span> : <JourneyChain legs={chain.legs} layovers={chain.layovers} timeZone={tz} compact />}
+                          </Cell>
+                          <Cell num>
+                            <span className="numeral">{formatDuration(o.totalMs)}</span>
+                          </Cell>
+                          <Cell num>
+                            <span className="numeral">{formatClock(o.arrival, tz)}</span>
+                          </Cell>
+                          <Cell>
+                            <span className="search-status">
+                              <span>{o.mode === "community" ? "Community Flight" : "Individual"}</span>
+                              {anyLocked && (
+                                <span className="search-locked" title="An airline on this journey is locked. Keep flying to unlock it.">
+                                  Locked
+                                </span>
+                              )}
+                            </span>
+                          </Cell>
+                          <Cell num>
+                            {bookable && chosen ? (
+                              <Link className="search-book" to={bookJourneyHref(o, chosen.cabin, studyWindow)}>
+                                Book
+                              </Link>
+                            ) : null}
+                          </Cell>
+                        </tr>
+                      );
+                    })
+                  : (offers ?? []).map((o) => {
+                      const day = formatRelativeDay(o.departure, now, tz);
+                      const bookHref = `/fly/book/${encodeURIComponent(o.snapshotId)}?mode=${o.mode}&departure=${o.departure.epochMs}&cabin=${urlState.cabin}&start=${urlState.start}&end=${urlState.end}`;
+                      return (
+                        <tr key={`${o.snapshotId}-${o.mode}-${o.departure.epochMs}`} className={o.airline.locked ? "is-locked" : undefined}>
+                          <Cell>
+                            <span className="search-time">
+                              <span className="numeral">{formatClock(o.departure, tz)}</span>
+                              {day !== "today" && <span className="muted small">{day}</span>}
+                            </span>
+                          </Cell>
+                          <Cell>
+                            <span className="search-flight">
+                              <span className="code">{o.flightNumber}</span>
+                              <span className="small muted">
+                                {o.airline.name}
+                                {o.aircraft.known ? `, ${o.aircraft.name}` : ""}
+                              </span>
+                            </span>
+                          </Cell>
+                          <Cell>
+                            <span className="search-to">
+                              <span>{o.destination.city}</span>
+                              <span className="code">{o.destination.iata}</span>
+                            </span>
+                          </Cell>
+                          <Cell>
+                            <span className="muted">Direct</span>
+                          </Cell>
+                          <Cell num>
+                            <span className="numeral">{formatDuration(o.blockMs)}</span>
+                          </Cell>
+                          <Cell num>
+                            <span className="numeral">{formatClock(o.arrival, tz)}</span>
+                          </Cell>
+                          <Cell>
+                            <span className="search-status">
+                              <span>{o.mode === "community" ? "Community Flight" : "Individual"}</span>
+                              {o.airline.locked && (
+                                <span className="search-locked" title="This airline is locked. Keep flying to unlock it.">
+                                  Locked
+                                </span>
+                              )}
+                            </span>
+                          </Cell>
+                          <Cell num>
+                            {o.bookable ? (
+                              <Link className="search-book" to={bookHref}>
+                                Book
+                              </Link>
+                            ) : null}
+                          </Cell>
+                        </tr>
+                      );
+                    })}
               </tbody>
             </Board>
+            </div>
           ) : null}
         </Section>
       )}

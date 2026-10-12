@@ -481,7 +481,9 @@
   }
 }
 
-/* Compact: one strip for journey chains. Strip block left, then codes and the core fields. */
+/* Compact: the pass as one strip for journey chains (Phase 9 item 7). The airline strip is the
+   left segment, then the paper carries codes, the core fields in pass order and the status tag.
+   72px tall on desktop; on phones the fields wrap to a second line under the codes. */
 .bp-compact {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -491,6 +493,7 @@
   background: var(--paper);
   box-shadow: 0 1px 0 rgba(27, 34, 48, 0.08), 0 6px 16px -8px rgba(27, 34, 48, 0.3);
   aspect-ratio: auto;
+  font-size: inherit;
 }
 .bp-compact-strip {
   flex-direction: column;
@@ -499,31 +502,82 @@
   gap: 1px;
   height: auto;
   padding: 0 14px;
-  min-width: 128px;
+  min-width: 120px;
+  max-width: 160px;
 }
 .bp-compact .bp-airline {
   font-size: 13px;
+  max-width: 100%;
 }
 .bp-compact .bp-strip-title {
   font-size: 11px;
 }
 .bp-compact-body {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "codes fields tag";
   align-items: center;
-  gap: 18px;
-  padding: 10px 16px;
-  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 8px 16px;
   min-width: 0;
 }
 .bp-compact-codes {
+  grid-area: codes;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   font-size: 22px;
+  line-height: 1;
   color: var(--paper-ink);
+  white-space: nowrap;
+}
+.bp-compact-fields {
+  grid-area: fields;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.bp-compact-fields .bp-field {
+  flex: none;
+}
+.bp-compact .bp-label {
+  font-size: 10px;
+}
+.bp-compact .bp-value {
+  font-size: 13px;
+}
+.bp-compact .bp-value .code {
+  font-size: 14px;
 }
 .bp-compact .bp-tag {
-  margin-left: auto;
+  grid-area: tag;
+  justify-self: end;
+}
+/* Wide enough for one line: hold the strip at exactly 72px. */
+@media (min-width: 960px) {
+  .bp-compact {
+    height: 72px;
+  }
+  .bp-compact-fields {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+}
+/* Phones: codes and the tag on the first line, the fields wrap beneath. */
+@media (max-width: 719.98px) {
+  .bp-compact-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "codes tag"
+      "fields fields";
+    padding: 10px 14px;
+  }
+  .bp-compact-strip {
+    min-width: 96px;
+    padding: 0 12px;
+  }
 }
 @media (max-width: 480px) {
   .bp-compact {
@@ -534,6 +588,19 @@
     align-items: center;
     justify-content: space-between;
     height: 36px;
+    max-width: none;
+  }
+  .bp-compact-fields {
+    gap: 6px 10px;
+  }
+  .bp-compact .bp-label {
+    font-size: 9.5px;
+  }
+  .bp-compact .bp-value {
+    font-size: 12px;
+  }
+  .bp-compact .bp-value .code {
+    font-size: 13px;
   }
 }
 

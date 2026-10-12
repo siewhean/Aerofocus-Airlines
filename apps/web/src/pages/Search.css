@@ -22,32 +22,61 @@
   color: var(--text-2);
   font-size: var(--fs-0);
 }
+
+/* The results as a departures board: fixed column order, a rule per row, numerals aligned. */
+.search-board .board {
+  min-width: 720px;
+}
+.search-board .board th {
+  padding-top: var(--s-3);
+  padding-bottom: var(--s-3);
+}
+.search-board .board td {
+  padding-top: var(--s-4);
+  padding-bottom: var(--s-4);
+}
+.search-board .board tbody tr:hover {
+  background: transparent;
+}
 .search-time {
   display: inline-flex;
   flex-direction: column;
   gap: 2px;
 }
-.search-cabins {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0 var(--s-1);
-  font-size: var(--fs-0);
+.search-time .numeral {
+  font-size: var(--fs-2);
 }
-.search-cabin-locked {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: var(--text-2);
-}
-.board tr.is-locked .code,
-.board tr.is-locked .numeral {
-  color: var(--text-2);
-}
-.search-action {
+.search-flight,
+.search-to {
   display: inline-flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: var(--s-1);
+  gap: 2px;
+}
+.search-to {
+  white-space: nowrap;
+}
+.search-to .code {
+  font-size: var(--fs-1);
+  color: var(--text-2);
+}
+.search-status {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+.search-locked {
+  color: var(--text-3);
+  font-size: var(--fs-0);
+}
+.board tr.is-locked .code,
+.board tr.is-locked .numeral,
+.board tr.is-locked .jchain-plane {
+  color: var(--text-3);
+}
+.search-book {
+  font-weight: 600;
+  white-space: nowrap;
 }
 @media (max-width: 600px) {
   .search-row .field,
