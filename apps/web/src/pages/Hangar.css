@@ -1,0 +1,114 @@
+.fleet {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--s-7);
+  align-items: start;
+}
+/* The phone select is hidden on desktop; the list is hidden on phones. */
+.fleet-pick {
+  display: none;
+}
+.fleet-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+  position: sticky;
+  top: var(--s-4);
+}
+.fleet-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+  padding: var(--s-3) var(--s-3);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-2);
+}
+.fleet-item:hover {
+  color: var(--text);
+}
+.fleet-item.is-active {
+  border-left-color: var(--accent);
+  color: var(--text);
+}
+.fleet-item-name {
+  font-weight: 600;
+}
+.fleet-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  min-width: 0;
+}
+.fleet-sheet-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.fleet-type {
+  font-size: var(--fs-6);
+}
+.fleet-family {
+  font-size: var(--fs-1);
+}
+.fleet-silhouette {
+  color: var(--text-2);
+  max-width: 560px;
+}
+.fleet-facts {
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  max-width: var(--measure);
+  font-variant-numeric: tabular-nums;
+}
+.fleet-cabin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+.fleet-cabin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.fleet-cabin-head h3 {
+  font-size: var(--fs-2);
+}
+.fleet-cabin-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.fleet-cabin-select {
+  min-width: 180px;
+  width: auto;
+}
+.fleet-flown {
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+  color: var(--text-2);
+}
+@media (max-width: 800px) {
+  .fleet {
+    grid-template-columns: 1fr;
+    gap: var(--s-5);
+  }
+  .fleet-pick {
+    display: block;
+    max-width: 420px;
+  }
+  .fleet-list {
+    display: none;
+  }
+  .fleet-type {
+    font-size: var(--fs-5);
+  }
+}

@@ -1,0 +1,162 @@
+@import "@fontsource-variable/bricolage-grotesque/standard.css";
+@import "./tokens.css";
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font);
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+/* The atmosphere crossfade only after first paint, so a page never loads mid-transition. */
+html.is-ready {
+  transition: background-color var(--t-slow) var(--ease), color var(--t-slow) var(--ease);
+}
+
+body {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-body);
+  font-variant-numeric: tabular-nums;
+  min-height: 100dvh;
+  filter: brightness(var(--ui-brightness));
+}
+
+img,
+svg,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--fs-5);
+}
+h2 {
+  font-size: var(--fs-4);
+}
+h3 {
+  font-size: var(--fs-3);
+}
+h4 {
+  font-size: var(--fs-2);
+}
+
+p {
+  margin: 0;
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}
+
+::selection {
+  background: var(--sky);
+  color: var(--ink);
+}
+
+/* Display type: the airport-signage voice. Width axis condenses large codes and board rows. */
+.display {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-stretch: 88%;
+}
+
+.code {
+  font-weight: 700;
+  font-stretch: 85%;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.numeral {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-stretch: 92%;
+  font-weight: 500;
+}
+
+.muted {
+  color: var(--text-2);
+}
+
+.small {
+  font-size: var(--fs-0);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--s-4);
+  top: -100px;
+  background: var(--accent);
+  color: var(--accent-text);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-2);
+  z-index: 100;
+}
+.skip-link:focus {
+  top: var(--s-4);
+}
+
+/* Horizontal rule used as structure, not decoration. */
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: var(--s-5) 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

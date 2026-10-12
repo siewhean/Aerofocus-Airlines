@@ -1,0 +1,121 @@
+/* The frequent-flyer card is an object: fixed colours in both colour modes (docs/UI-PLAN.md Phase 9). */
+.member-card {
+  --card-base: #0e1a2f;
+  --card-raised: #15243d;
+  --card-type: #f4efe4;
+  --card-type-2: rgba(244, 239, 228, 0.72);
+  --card-rule: #3b5b8f;
+  --card-track: rgba(244, 239, 228, 0.18);
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1.586;
+  border-radius: 14px;
+  padding: 6.5% 6.5% 5.5%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 2.2%;
+  color: var(--card-type);
+  background:
+    radial-gradient(120% 90% at 100% 0%, var(--card-raised) 0%, transparent 60%),
+    var(--card-base);
+  box-shadow: var(--shadow-pass);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+.member-card.is-gold {
+  --card-type: #e3c97c;
+  --card-type-2: rgba(227, 201, 124, 0.72);
+  --card-rule: #c8a75a;
+  --card-track: rgba(200, 167, 90, 0.22);
+}
+.member-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+.member-card-wordmark {
+  font-weight: 700;
+  font-stretch: 88%;
+  letter-spacing: 0.02em;
+  font-size: var(--fs-1);
+}
+.member-card-tier {
+  font-size: var(--fs-0);
+  color: var(--card-type-2);
+}
+.member-card-rule {
+  height: 2px;
+  background: var(--card-rule);
+}
+.member-card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 0;
+}
+.member-card-level {
+  font-size: var(--fs-5);
+  margin-bottom: var(--s-2);
+}
+.member-card-name {
+  font-size: var(--fs-2);
+  font-weight: 500;
+  font-stretch: 92%;
+  letter-spacing: 0.04em;
+  text-transform: uppercase; /* the embossed name line on a real card, not a UI label */
+  color: var(--card-type);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.member-card-number {
+  font-size: var(--fs-2);
+  letter-spacing: 0.08em;
+  color: var(--card-type);
+}
+.member-card-since {
+  font-size: var(--fs-0);
+  color: var(--card-type-2);
+}
+.member-card-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.member-card-progress-label {
+  font-size: var(--fs-0);
+  color: var(--card-type-2);
+}
+.member-card-progress-track {
+  display: block;
+  height: 2px;
+  background: var(--card-track);
+}
+.member-card-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--card-rule);
+  transition: width var(--t-med) var(--ease);
+}
+@media (max-width: 420px) {
+  .member-card {
+    border-radius: 12px;
+  }
+  .member-card-level {
+    font-size: var(--fs-4);
+  }
+  .member-card-name,
+  .member-card-number {
+    font-size: var(--fs-1);
+  }
+}
+@media print {
+  .member-card {
+    box-shadow: none;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

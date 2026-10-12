@@ -1,0 +1,37 @@
+.canvas-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  touch-action: none;
+  user-select: none;
+  overflow: hidden;
+  border-radius: var(--r-3);
+  background: var(--map-water);
+  cursor: grab;
+  /* Map palette follows the atmosphere. */
+  --map-water: #e7eef2;
+  --map-land: #d8d1bf;
+  --map-line: #b7b09e;
+}
+:root[data-theme="air"] .canvas-map {
+  --map-water: #0b1527;
+  --map-land: #1f2d47;
+  --map-line: #35486c;
+}
+.canvas-map:active {
+  cursor: grabbing;
+}
+.canvas-map:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.canvas-map canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.canvas-map > :not(canvas) {
+  position: absolute;
+}

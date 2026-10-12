@@ -1,0 +1,27 @@
+.route-timeline tr.is-active td {
+  background: var(--bg-sunken);
+}
+.route-timeline tr.is-active td:first-child {
+  box-shadow: inset 3px 0 0 var(--geo);
+}
+.route-timeline-select {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+.route-timeline-select:hover {
+  text-decoration-color: var(--geo);
+}
+.route-timeline-select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--r-1);
+}

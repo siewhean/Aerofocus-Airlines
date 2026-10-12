@@ -1,0 +1,218 @@
+/* Layover Terminal: ground tokens on the cooler terminal surface (tokens.css [data-theme="terminal"]). */
+.terminal {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  padding: var(--s-5) var(--s-4) calc(var(--s-6) + env(safe-area-inset-bottom, 0px));
+}
+.terminal-loading {
+  justify-content: center;
+}
+
+/* Header: the airport as signage, the passenger's clock and the journey facts on the right. */
+.terminal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+.terminal-airport {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  min-width: 0;
+}
+.terminal-airport-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.terminal-code {
+  font-size: clamp(2.5rem, 7vw, 3.5rem);
+  line-height: 1;
+  color: var(--board);
+}
+.terminal-title {
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  line-height: 1.1;
+}
+.terminal-city {
+  margin: 0;
+  color: var(--text-2);
+}
+.terminal-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-2);
+  text-align: right;
+}
+.terminal-meta > time {
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+.terminal-facts {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  font-size: var(--fs-1);
+  color: var(--text-2);
+}
+.terminal-facts span + span::before {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  background: var(--line);
+  margin-right: var(--s-3);
+  vertical-align: middle;
+}
+.terminal-journey-link {
+  font-size: var(--fs-1);
+}
+
+/* Hero: the gate countdown and its one action. */
+.terminal-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+}
+.terminal-phase {
+  margin: 0;
+}
+.terminal-hero-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.terminal-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.terminal-section h2,
+.terminal-panel h2 {
+  font-size: var(--fs-3);
+}
+
+/* Lounge and focus side by side where there is room. */
+.terminal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--s-5);
+  align-items: start;
+}
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--bg-raised);
+}
+.terminal-panel p {
+  margin: 0;
+  max-width: 48ch;
+}
+
+/* Premium lounge: the reading-light glow, warm light pooling from the top-left corner. */
+.terminal-lounge.is-premium {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
+  background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--gold) 26%, var(--bg-raised)) 0%, color-mix(in srgb, var(--gold) 8%, var(--bg-raised)) 45%, var(--bg-raised) 100%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--gold) 20%, transparent),
+    0 24px 48px -28px color-mix(in srgb, var(--gold) 55%, transparent);
+}
+.terminal-lounge.is-premium::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 32%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.terminal-lounge.is-premium > * {
+  position: relative;
+}
+
+.terminal-focus-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.terminal-counter {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 600;
+  font-size: var(--fs-2);
+}
+.terminal-focus-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.terminal-footer {
+  margin-top: auto;
+}
+.terminal-empty-actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .terminal-meta {
+    align-items: flex-start;
+    text-align: left;
+    width: 100%;
+  }
+  .terminal-facts {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 400px) {
+  .terminal {
+    padding: var(--s-4) var(--s-3) calc(var(--s-5) + env(safe-area-inset-bottom, 0px));
+    gap: var(--s-5);
+  }
+  .terminal-airport {
+    flex-direction: column;
+    gap: var(--s-2);
+  }
+  .terminal-facts {
+    flex-direction: column;
+    gap: var(--s-1);
+  }
+  .terminal-facts span + span::before {
+    display: none;
+  }
+  .terminal-panel {
+    padding: var(--s-4);
+  }
+  .terminal-hero-actions .btn,
+  .terminal-empty-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

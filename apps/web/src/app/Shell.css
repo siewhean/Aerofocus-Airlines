@@ -1,0 +1,160 @@
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Wayfinding strip: one quiet line, like the signage over a concourse. */
+.wayfinding {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s-5);
+  padding: 0 var(--s-4);
+  min-height: 52px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.wayfinding-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  text-decoration: none;
+  color: var(--text);
+}
+.wayfinding-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  transform: rotate(-20deg);
+}
+.wayfinding-name {
+  font-weight: 700;
+  font-stretch: 90%;
+  letter-spacing: -0.01em;
+  font-size: var(--fs-2);
+}
+.wayfinding-links {
+  display: flex;
+  gap: var(--s-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  justify-self: center;
+  max-width: 100%;
+}
+.wayfinding-links::-webkit-scrollbar {
+  display: none;
+}
+.wayfinding-link {
+  flex: none;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  text-decoration: none;
+  color: var(--text-2);
+  font-weight: 500;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.wayfinding-link:hover {
+  color: var(--text);
+}
+.wayfinding-link.is-active {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--geo);
+  border-radius: var(--r-2) var(--r-2) 0 0;
+}
+.wayfinding-aside {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  justify-self: end;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-4) var(--s-8);
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .wayfinding {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 0;
+    padding-bottom: var(--s-1);
+  }
+  .wayfinding-links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    margin-inline: calc(-1 * var(--s-4));
+    padding-inline: var(--s-4);
+    /* Fade the right edge so the strip reads as scrollable. */
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .wayfinding-who {
+    display: none;
+  }
+  .content {
+    padding: var(--s-5) var(--s-4) var(--s-7);
+  }
+}
+
+@media (min-width: 900px) {
+  .content {
+    padding: var(--s-7) var(--s-6) var(--s-8);
+  }
+}
+
+/* In flight and in the terminal the strip steps back. Pages set data-shell="hidden". */
+:root[data-shell="hidden"] .wayfinding {
+  display: none;
+}
+:root[data-shell="hidden"] .content {
+  padding: 0;
+  max-width: none;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+.page-wide {
+  max-width: none;
+}
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.page-lead {
+  margin-top: var(--s-2);
+}
+.page-aside {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.page-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}

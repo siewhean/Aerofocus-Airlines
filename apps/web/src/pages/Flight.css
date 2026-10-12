@@ -1,0 +1,311 @@
+.flight {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  padding: var(--s-4) var(--s-4) 0;
+}
+.flight-loading {
+  justify-content: center;
+}
+
+/* Header: flight ident, route, and the share toggle or community badge. */
+.flight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.flight-ident-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+}
+.flight-header-aside {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+/* Journey context on a connecting leg (Phase 7): leg badge, the onward line and a link. */
+.flight-journey {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-1);
+  text-align: right;
+}
+.flight-journey-line {
+  max-width: 32ch;
+}
+.flight-share .toggle-row {
+  padding: 0;
+  border-bottom: 0;
+  gap: var(--s-3);
+}
+.flight-share .toggle-text label {
+  font-weight: 500;
+}
+.flight-share .field-hint {
+  max-width: 28ch;
+}
+
+/* Main grid: window left, status right. */
+.flight-main {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: var(--s-7);
+  align-items: center;
+}
+.flight-status {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.flight-line {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--fs-2);
+  flex-wrap: wrap;
+}
+.flight-line span + span::before {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  background: var(--line);
+  margin-right: var(--s-3);
+  vertical-align: middle;
+}
+.flight-place,
+.flight-lands {
+  font-size: var(--fs-1);
+}
+
+/* Progress: elapsed time as the fill, distance covered as a thin marker. */
+.flight-progress {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--midnight-line);
+  margin-top: var(--s-2);
+  overflow: visible;
+}
+.flight-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--sky);
+  transition: width 1s linear;
+}
+.flight-progress-distance {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 10px;
+  margin-left: -1px;
+  background: var(--gold);
+  border-radius: 1px;
+  transition: left 1s linear;
+}
+
+.flight-map {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  min-width: 0;
+}
+.flight-map .countdown-value {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+}
+
+.flight-footer {
+  padding-bottom: var(--s-3);
+}
+.flight-empty-actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.flight-error {
+  position: fixed;
+  left: 50%;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(92vw, 560px);
+  z-index: 15;
+}
+.flight-error .notice {
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-pass);
+}
+
+/* Caption strip (Announcements.tsx) */
+.caption-strip {
+  position: fixed;
+  top: var(--s-4);
+  left: 50%;
+  transform: translate(-50%, -8px);
+  width: max-content;
+  max-width: min(92vw, 640px);
+  padding: var(--s-3) var(--s-5);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-pass);
+  font-size: var(--fs-2);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease);
+}
+.caption-strip.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* Compact: mini window beside the figures. */
+.flight-mode-compact .flight-main {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-5);
+}
+.flight-mode-compact .countdown-value {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+}
+
+/* Minimal: countdown, pill and a tiny controls row, centred. */
+.flight-mode-minimal {
+  justify-content: center;
+}
+.flight-minimal-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--s-5);
+  padding-bottom: calc(var(--s-6) + env(safe-area-inset-bottom, 0px));
+}
+.flight-minimal-body .countdown {
+  align-items: center;
+}
+
+/* Ambient: the window fills the viewport; controls appear on hover or focus. */
+.flight-mode-ambient {
+  max-width: none;
+  padding: 0;
+  gap: 0;
+}
+.flight-window-full {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+.flight-window-full .window {
+  height: 100%;
+  gap: 0;
+}
+.flight-window-full .window-caption {
+  position: absolute;
+  right: var(--s-4);
+  bottom: calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  color: rgba(255, 255, 255, 0.7);
+}
+.flight-ambient-overlay {
+  position: fixed;
+  left: var(--s-5);
+  bottom: calc(var(--s-6) + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+.flight-ambient-overlay .countdown-label {
+  color: rgba(255, 255, 255, 0.75);
+}
+.flight-mode-ambient .flight-controls {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity var(--t-med) var(--ease);
+}
+.flight-mode-ambient:hover .flight-controls,
+.flight-mode-ambient:focus-within .flight-controls,
+.flight-mode-ambient .flight-controls:focus-within {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .flight-mode-ambient .flight-controls {
+    opacity: 1;
+  }
+}
+
+/* Mobile: window on top, capped at 42vh, then everything stacked. */
+@media (max-width: 760px) {
+  .flight-main,
+  .flight-mode-compact .flight-main {
+    grid-template-columns: 1fr;
+    gap: var(--s-5);
+    justify-items: center;
+  }
+  /* Keep the countdown and the focus row above the fold on a phone. */
+  .flight-window {
+    max-width: none;
+  }
+  .flight-cabin {
+    width: min(100%, 300px, 38vh);
+  }
+  .flight {
+    gap: var(--s-4);
+  }
+  .flight-main {
+    gap: var(--s-4);
+  }
+  .flight-status,
+  .flight-map {
+    width: 100%;
+  }
+  .flight-header-aside {
+    width: 100%;
+  }
+  .flight-journey {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .flight-ambient-overlay {
+    left: var(--s-4);
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Map mode: the cabin stays at the top beside the long route column instead of being centred. */
+.flight-mode-map .flight-main {
+  align-items: start;
+}
+.flight-mode-map .flight-cabin {
+  position: sticky;
+  top: var(--s-4);
+}
+@media (max-width: 760px) {
+  .flight-mode-map .flight-cabin {
+    position: static;
+  }
+}

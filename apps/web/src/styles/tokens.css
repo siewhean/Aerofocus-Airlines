@@ -1,0 +1,156 @@
+/*
+  Aerofocus Airlines design tokens.
+  Two atmospheres: "ground" (airport, ivory) and "air" (cabin, midnight). Set data-theme on <html>.
+  Palette directions come from plan.md §20; the hex values are chosen here.
+*/
+
+:root {
+  /* Base palette. Text colours are set so every text/background pair clears WCAG AA 4.5:1. */
+  --midnight: #0e1a2f;
+  --midnight-raised: #182845;
+  --midnight-line: #27395a;
+  --ivory: #f4efe4;
+  --ivory-raised: #fcfaf4;
+  --ivory-line: #ddd6c6;
+  --ink: #1b2230;
+  --sky: #8fc1e3;
+  --sky-deep: #2f6d9c;
+  --gold: #c8a75a;
+  --gold-deep: #7a6022;
+  --slate: #596170;
+  --signal: #2fa874;
+  --amber: #e0a526;
+  --danger: #ad4133;
+
+  /* Type */
+  --font: "Bricolage Grotesque Variable", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --fs-0: 0.8125rem; /* 13 */
+  --fs-1: 0.9375rem; /* 15 */
+  --fs-2: 1.125rem; /* 18 */
+  --fs-3: 1.375rem; /* 22 */
+  --fs-4: 1.75rem; /* 28 */
+  --fs-5: 2.25rem; /* 36 */
+  --fs-6: 3rem; /* 48 */
+  --fs-7: 4.5rem; /* 72 */
+  --fs-8: 7rem; /* 112 */
+  --lh-body: 1.55;
+  --lh-tight: 1.1;
+  --measure: 72ch;
+
+  /* Space (4px base) */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4rem;
+
+  /* Radii */
+  --r-1: 4px;
+  --r-2: 8px;
+  --r-3: 14px;
+  --r-window: 48px 48px 32px 32px; /* aircraft window: squarer at the bottom */
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 140ms;
+  --t-med: 260ms;
+  --t-slow: 700ms;
+
+  /* Layout */
+  --content-max: 1200px;
+
+  /* Semantic: ground */
+  --bg: var(--ivory);
+  --bg-raised: var(--ivory-raised);
+  --bg-sunken: #ebe5d7;
+  --line: var(--ivory-line);
+  --text: var(--ink);
+  --text-2: var(--slate);
+  --text-3: #767d8a;
+  --accent: var(--midnight);
+  --accent-text: var(--ivory);
+  --geo: var(--sky-deep);
+  --premium: var(--gold-deep);
+  --focus-ring: var(--sky-deep);
+  --shadow-pass: 0 1px 0 rgba(27, 34, 48, 0.06), 0 12px 32px -12px rgba(27, 34, 48, 0.28);
+
+  color-scheme: light;
+  /* Interface brightness (FR-024); the air theme reads it. 1 = normal. */
+  --ui-brightness: 1;
+}
+
+:root[data-theme="air"] {
+  --bg: var(--midnight);
+  --bg-raised: var(--midnight-raised);
+  --bg-sunken: #0a1322;
+  --line: var(--midnight-line);
+  --text: #eef1f6;
+  --text-2: #a9b3c4;
+  --text-3: #8a97ad;
+  --accent: var(--ivory);
+  --accent-text: var(--midnight);
+  --geo: var(--sky);
+  --premium: var(--gold);
+  --focus-ring: var(--sky);
+  /* Status colours lifted for the midnight surfaces (4.5:1 or better on --midnight). */
+  --danger: #e06a5b;
+  --signal: #4fc08c;
+  --amber: #e8b64a;
+  --shadow-pass: 0 1px 0 rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+/* Terminal: the layover atmosphere. Ground tokens on a cooler, greyer surface. */
+:root[data-theme="terminal"] {
+  --bg: #eceeea;
+  --bg-raised: #f7f8f5;
+  --bg-sunken: #dfe3dd;
+  --line: #cfd4cc;
+  --accent: var(--midnight);
+  --accent-text: var(--ivory);
+  --board: #1d6b4a; /* signage green for the departures board */
+  color-scheme: light;
+}
+
+/*
+  Dark mode (owner rule 4). data-mode="dark" is set by lib/theme.ts from the Appearance setting
+  (system / light / dark). Air is dark by nature; ground and terminal get night palettes here.
+  Objects (boarding pass, stamps, departures board) keep their own fixed colours.
+*/
+:root[data-mode="dark"]:not([data-theme="air"]) {
+  --bg: #17191c;
+  --bg-raised: #202327;
+  --bg-sunken: #101214;
+  --line: #31353b;
+  --text: #ecebe6;
+  --text-2: #a7acb4;
+  --text-3: #7d838c;
+  --accent: var(--ivory);
+  --accent-text: var(--midnight);
+  --geo: var(--sky);
+  --premium: #d1b068;
+  --signal: #4fc08c;
+  --amber: #e8b64a;
+  --danger: #e06a5b;
+  --focus-ring: var(--sky);
+  --shadow-pass: 0 1px 0 rgba(0, 0, 0, 0.4), 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+:root[data-mode="dark"][data-theme="terminal"] {
+  --bg: #161a1c;
+  --bg-raised: #1e2427;
+  --bg-sunken: #0f1314;
+  --line: #2d3539;
+  --board: #2a8a60;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-med: 0ms;
+    --t-slow: 0ms;
+  }
+}

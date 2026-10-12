@@ -1,0 +1,74 @@
+.pp-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.pp-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: 0 var(--s-3) 0 var(--s-2);
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  cursor: pointer;
+  font-weight: 500;
+  position: relative;
+}
+.pp-swatch:hover:not(:disabled) {
+  border-color: var(--text-3);
+}
+.pp-swatch.is-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.pp-swatch:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.pp-swatch-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: none;
+}
+.pp-swatch-custom input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.pp-swatch-custom:focus-within {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.pp-search {
+  max-width: 360px;
+}
+/* Countries with visits split into final arrivals and transits (FR-050). */
+.pp-countries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 0 var(--s-5);
+}
+.pp-countries li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 400px) {
+  .pp-countries li {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

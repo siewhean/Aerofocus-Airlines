@@ -1,0 +1,85 @@
+.flight-controls {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin: auto calc(-1 * var(--s-4)) 0;
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
+.flight-controls.is-tiny {
+  position: static;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  border-top: 0;
+  justify-content: center;
+}
+.flight-controls-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-wrap: wrap;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.segmented button {
+  flex: none;
+  background: transparent;
+  border: 0;
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: var(--fs-1);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.segmented-sm button {
+  min-height: 34px;
+  font-size: var(--fs-0);
+}
+.segmented button + button {
+  border-left: 1px solid var(--line);
+}
+.segmented button:hover {
+  color: var(--text);
+}
+.segmented button[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.segmented button:focus-visible {
+  outline-offset: -3px;
+  border-radius: 0;
+}
+
+@media (max-width: 560px) {
+  .flight-controls {
+    justify-content: center;
+  }
+  .flight-controls .segmented {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .flight-controls .segmented button {
+    flex: 1 1 auto;
+    padding: 0 var(--s-2);
+  }
+}

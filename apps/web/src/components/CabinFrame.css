@@ -1,0 +1,145 @@
+/*
+ * Cabin wall around the window. Sizes are in container-query units so the same frame reads
+ * correctly at the 420px panel and the 160px compact window.
+ */
+.cabin-frame {
+  --wall-l: calc(16% + var(--cabin-brightness, 0.7) * 22%);
+  --wall-h: 215;
+  --wall-s: 12%;
+  --wall: hsl(var(--wall-h) var(--wall-s) var(--wall-l));
+  --wall-light: hsl(var(--wall-h) var(--wall-s) calc(var(--wall-l) + 7%));
+  --wall-dark: hsl(var(--wall-h) var(--wall-s) calc(var(--wall-l) - 6%));
+  --sill: hsl(var(--wall-h) 10% calc(var(--wall-l) + 10%));
+  --seat: hsl(218 14% calc(var(--wall-l) - 2%));
+  --seat-edge: hsl(218 12% calc(var(--wall-l) + 6%));
+  --lamp-ring: #8e949e;
+  --lamp-pool: rgba(255, 214, 150, 0.42);
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+  padding: 13cqw 8cqw 0;
+  border-radius: var(--r-3);
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 0%, transparent 28%, transparent 72%, rgba(0, 0, 0, 0.14) 100%),
+    linear-gradient(180deg, var(--wall-light) 0%, var(--wall) 38%, var(--wall-dark) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  transition: background var(--t-slow) var(--ease);
+}
+/* The wall curves away from the aisle; the highlight sits on the window side. */
+.cabin-frame[data-side="right"] {
+  background:
+    linear-gradient(270deg, rgba(255, 255, 255, 0.07) 0%, transparent 28%, transparent 72%, rgba(0, 0, 0, 0.14) 100%),
+    linear-gradient(180deg, var(--wall-light) 0%, var(--wall) 38%, var(--wall-dark) 100%);
+}
+.cabin-warm {
+  --wall-h: 32;
+  --wall-s: 9%;
+}
+.cabin-premium {
+  --wall-h: 222;
+  --wall-s: 14%;
+  --wall-l: calc(12% + var(--cabin-brightness, 0.7) * 18%);
+  --seat: hsl(22 28% calc(var(--wall-l) - 2%));
+  --seat-edge: hsl(24 30% calc(var(--wall-l) + 8%));
+  --lamp-ring: #b08d57;
+  --lamp-pool: rgba(255, 206, 140, 0.4);
+}
+
+/* Overhead reading light: housing above the window, lens dark until lit. */
+.cabin-lamp {
+  position: absolute;
+  top: 4.5cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 9cqw;
+  height: 4.2cqw;
+  display: grid;
+  place-items: center;
+}
+.cabin-lamp-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--wall-light), var(--wall-dark));
+  box-shadow:
+    inset 0 0 0 0.35cqw var(--lamp-ring),
+    0 0.3cqw 0.6cqw rgba(0, 0, 0, 0.45);
+}
+.cabin-lamp-lens {
+  position: relative;
+  width: 3.2cqw;
+  height: 1.6cqw;
+  border-radius: 999px;
+  background: #2a2d33;
+  box-shadow: inset 0 0.2cqw 0.4cqw rgba(0, 0, 0, 0.6);
+  transition: background var(--t-med) var(--ease), box-shadow var(--t-med) var(--ease);
+}
+.is-lit .cabin-lamp-lens {
+  background: #ffe9c4;
+  box-shadow:
+    0 0 1.2cqw 0.4cqw rgba(255, 224, 170, 0.75),
+    inset 0 0 0.3cqw rgba(255, 255, 255, 0.8);
+}
+/* Warm pool on the wall and the sill, only when lit. */
+.cabin-lamp-pool {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(42% 46% at 50% 7cqw, var(--lamp-pool), transparent 70%),
+    radial-gradient(70% 18% at 50% 100%, rgba(255, 214, 150, 0.22), transparent 70%);
+  transition: opacity var(--t-slow) var(--ease);
+}
+.is-lit .cabin-lamp-pool {
+  opacity: 1;
+}
+
+/* Window reveal: a soft recess around the window's own frame. */
+.cabin-reveal {
+  position: relative;
+  border-radius: var(--r-window);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0.6cqw 1.6cqw rgba(0, 0, 0, 0.35),
+    inset 0 0 0 0.6cqw rgba(255, 255, 255, 0.04);
+}
+
+/* Sill: a shallow ledge under the window with a lit top edge. */
+.cabin-sill {
+  position: relative;
+  margin: 2.5cqw -8cqw 0;
+  height: 2.6cqw;
+  background: linear-gradient(180deg, var(--sill) 0%, var(--wall-dark) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0.4cqw 0.8cqw rgba(0, 0, 0, 0.3);
+}
+
+/* Seat-back edge at the bottom with the tray-table latch line. */
+.cabin-seatback {
+  position: relative;
+  margin: 0 -8cqw;
+  height: 8cqw;
+  background: linear-gradient(180deg, var(--seat-edge) 0%, var(--seat) 30%, var(--seat) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.cabin-premium .cabin-seatback {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 7cqw, rgba(0, 0, 0, 0.06) 7cqw 7.3cqw),
+    linear-gradient(180deg, var(--seat-edge) 0%, var(--seat) 30%, var(--seat) 100%);
+}
+.cabin-latch {
+  position: absolute;
+  top: 3.2cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 7cqw;
+  height: 1.1cqw;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(0, 0, 0, 0.25));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}

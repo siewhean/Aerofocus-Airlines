@@ -7,6 +7,7 @@ import { authRoutes } from "./routes/auth";
 import { bookingRoutes } from "./routes/bookings";
 import { communityRoutes } from "./routes/community";
 import { flightRoutes } from "./routes/flights";
+import { itineraryRoutes } from "./routes/itineraries";
 import { meRoutes } from "./routes/me";
 import { referenceRoutes } from "./routes/reference";
 import { sessionRoutes } from "./routes/sessions";
@@ -24,6 +25,7 @@ export function createApp(deps: AppDeps) {
   app.route("/v1/me", meRoutes(deps));
   app.route("/v1/flights", flightRoutes(deps));
   app.route("/v1/bookings", bookingRoutes(deps));
+  app.route("/v1/itineraries", itineraryRoutes(deps));
   app.route("/v1/sessions", sessionRoutes(deps));
   app.route("/v1/community", communityRoutes(deps));
   return app;

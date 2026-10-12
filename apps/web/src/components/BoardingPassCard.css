@@ -1,0 +1,627 @@
+/* The boarding pass as paper. Colours are the object's own, not theme tokens, so the card looks the
+   same in light and dark mode and in print. Sizes in cqw scale the desktop card with its width so
+   the 8 × 3.25 proportion holds without overflow. */
+
+.bp-wrap {
+  container-type: inline-size;
+  container-name: pass;
+  max-width: 880px;
+  filter: drop-shadow(0 1px 0 rgba(27, 34, 48, 0.08)) drop-shadow(0 12px 26px rgba(27, 34, 48, 0.2));
+}
+
+.bp {
+  --paper: #f7f5ef;
+  --paper-ink: #1b2230;
+  --paper-slate: #596170;
+  --paper-line: #d9d4c7;
+  --notch: 10px;
+  --perf: #b9b2a3;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  color: var(--paper-ink);
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+}
+
+.bp-main,
+.bp-stub {
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+/* Airline strip */
+.bp-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  background: var(--midnight);
+  color: var(--ivory);
+  padding: 0 18px;
+  height: 44px;
+  flex: none;
+}
+.bp-airline {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-strip-title {
+  font-weight: 400;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--ivory) 78%, var(--midnight));
+  white-space: nowrap;
+}
+
+/* Fields */
+.bp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bp-label {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--paper-slate);
+  white-space: nowrap;
+}
+.bp-value {
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--paper-ink);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bp-value .code {
+  font-size: 17px;
+}
+.bp-note {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--paper-slate);
+}
+.bp-city-line {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--paper-slate);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-plane {
+  color: var(--sky-deep);
+  display: inline-flex;
+}
+
+/* Status tag: a small inked stamp, not a UI badge. */
+.bp-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transform: rotate(-3deg);
+  opacity: 0.9;
+  mix-blend-mode: multiply;
+}
+.bp-tag-neutral {
+  color: #5a6170;
+}
+.bp-tag-signal {
+  color: #1f7a54;
+}
+.bp-tag-geo {
+  color: #2f6d9c;
+}
+.bp-tag-danger {
+  color: #ad4133;
+}
+.bp-tag-slot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+/* Body: phone (wallet) form first; the desktop grid overrides below. */
+.bp-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+.bp-route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--s-3);
+}
+.bp-end {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bp-end.is-to {
+  text-align: right;
+}
+.bp-iata {
+  font-size: 40px;
+  color: var(--paper-ink);
+}
+.bp-city {
+  font-size: 13px;
+  color: var(--paper-slate);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+.bp-grid .is-wide {
+  grid-column: 1 / -1;
+}
+.bp-grid .bp-tag-slot {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+/* On phones the codes already sit above; From/To fields are hidden. */
+.bp-grid .bp-from,
+.bp-grid .bp-to {
+  display: none;
+}
+
+.bp-goal {
+  max-width: none;
+  font-size: 13px;
+  line-height: 1.35;
+  border-top: 1px solid var(--paper-line);
+  padding-top: 10px;
+}
+.bp-goal .bp-label {
+  margin-right: 6px;
+}
+
+.bp-foot {
+  border-top: 1px solid var(--paper-line);
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--paper-slate);
+  line-height: 1.3;
+}
+.bp-foot-type {
+  font-weight: 600;
+  color: var(--paper-ink);
+}
+.bp-foot .badge {
+  background: #ebe7dc;
+  color: var(--paper-slate);
+  font-size: 10px;
+  padding: 1px 7px;
+}
+
+.bp-qr {
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+}
+
+.barcode {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.barcode-label {
+  font-size: 9px;
+  line-height: 1;
+  color: #596170;
+  letter-spacing: 0.02em;
+}
+
+/* Phone: a portrait wallet card. The stub does not exist. */
+.bp-stub {
+  display: none;
+}
+@media (max-width: 719.98px) {
+  .bp-wrap {
+    max-width: 400px;
+  }
+  .bp-main {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+}
+
+/* Desktop and print: the IATA card, 8 × 3.25 in, main body left and the stub on the right across a
+   perforation (dashed rule plus half-circle notches masked from each half). */
+@media (min-width: 720px), print {
+  .bp {
+    aspect-ratio: 8 / 3.25;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    overflow: hidden;
+    font-size: 1cqw;
+  }
+  .bp-main {
+    border-radius: 10px 0 0 10px;
+    -webkit-mask:
+      radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    -webkit-mask-composite: source-in;
+    mask:
+      radial-gradient(circle at 100% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 100% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    mask-composite: intersect;
+  }
+  .bp-stub {
+    display: flex;
+    border-radius: 0 10px 10px 0;
+    border-left: 1.5px dashed var(--perf);
+    -webkit-mask:
+      radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    -webkit-mask-composite: source-in;
+    mask:
+      radial-gradient(circle at 0 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)),
+      radial-gradient(circle at 0 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px));
+    mask-composite: intersect;
+  }
+
+  .bp-strip {
+    height: clamp(34px, 5cqw, 44px);
+    padding: 0 clamp(12px, 2.1cqw, 20px);
+  }
+  .bp-airline {
+    font-size: clamp(12px, 1.7cqw, 15px);
+  }
+  .bp-strip-title {
+    font-size: clamp(10px, 1.45cqw, 13px);
+  }
+  .bp-stub-strip .bp-airline {
+    font-size: clamp(10px, 1.3cqw, 12px);
+    font-weight: 500;
+  }
+  .bp-stub-strip .bp-strip-title {
+    display: none;
+  }
+
+  .bp-body {
+    padding: clamp(10px, 1.9cqw, 18px) clamp(12px, 2.2cqw, 20px);
+    gap: clamp(8px, 1.25cqw, 12px);
+    justify-content: space-between;
+  }
+  /* The phone-only elements leave; the desktop grid carries From/To itself. */
+  .bp-route,
+  .bp-qr {
+    display: none;
+  }
+  .bp-grid .bp-from,
+  .bp-grid .bp-to {
+    display: flex;
+  }
+
+  .bp-grid {
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-template-areas:
+      "name name name name flight flight date date tag tag"
+      "from from from to to to boarding boarding departs departs"
+      "gate gate seat seat class class seq seq study study";
+    gap: clamp(8px, 1.3cqw, 12px) clamp(8px, 1.4cqw, 14px);
+    align-items: start;
+  }
+  /* The named areas must win over the phone-only full-width rule, so match its specificity. */
+  .bp-grid .bp-name.is-wide,
+  .bp-grid .bp-name {
+    grid-area: name;
+  }
+  .bp-grid .is-wide:not(.bp-name) {
+    grid-column: 1 / -1;
+  }
+  .bp-flight {
+    grid-area: flight;
+  }
+  .bp-date {
+    grid-area: date;
+  }
+  .bp-grid .bp-tag-slot {
+    grid-area: tag;
+    justify-content: flex-end;
+  }
+  .bp-from {
+    grid-area: from;
+  }
+  .bp-to {
+    grid-area: to;
+  }
+  .bp-boarding {
+    grid-area: boarding;
+  }
+  .bp-departs {
+    grid-area: departs;
+  }
+  .bp-gate {
+    grid-area: gate;
+  }
+  .bp-seat {
+    grid-area: seat;
+  }
+  .bp-class {
+    grid-area: class;
+  }
+  .bp-seq {
+    grid-area: seq;
+  }
+  .bp-study {
+    grid-area: study;
+  }
+
+  .bp-label {
+    font-size: clamp(9px, 1.25cqw, 11px);
+  }
+  .bp-value {
+    font-size: clamp(12px, 1.75cqw, 15px);
+  }
+  .bp-value .code {
+    font-size: clamp(13px, 1.95cqw, 17px);
+  }
+  .bp-name .bp-value {
+    font-size: clamp(13px, 2.05cqw, 18px);
+  }
+  .bp-grid .bp-iata {
+    font-size: clamp(26px, 4.4cqw, 40px);
+    line-height: 1;
+  }
+  .bp-city-line {
+    font-size: clamp(10px, 1.45cqw, 13px);
+  }
+  .bp-note {
+    font-size: clamp(9px, 1.2cqw, 11px);
+  }
+  .bp-tag {
+    font-size: clamp(9px, 1.25cqw, 11px);
+  }
+  .bp-goal {
+    font-size: clamp(10px, 1.4cqw, 13px);
+    padding-top: clamp(6px, 1cqw, 10px);
+  }
+  .bp-foot {
+    font-size: clamp(9px, 1.2cqw, 11px);
+    padding-top: clamp(6px, 1cqw, 10px);
+    flex-wrap: nowrap;
+  }
+  .bp-foot-note {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .bp-foot .badge {
+    flex: none;
+  }
+
+  /* Stub */
+  .bp-stub-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: clamp(6px, 1cqw, 9px) clamp(8px, 1.4cqw, 12px);
+    padding: clamp(8px, 1.5cqw, 14px) clamp(20px, 2.6cqw, 24px) clamp(8px, 1.5cqw, 14px) clamp(10px, 1.8cqw, 16px);
+    min-width: 0;
+  }
+  .bp-stub-body .is-wide,
+  .bp-stub-codes,
+  .bp-stub-barcode {
+    grid-column: 1 / -1;
+  }
+  .bp-stub-body .bp-label {
+    font-size: clamp(8px, 1.1cqw, 10px);
+  }
+  .bp-stub-body .bp-value {
+    font-size: clamp(11px, 1.5cqw, 13px);
+  }
+  .bp-stub-body .bp-value .code {
+    font-size: clamp(12px, 1.65cqw, 14px);
+  }
+  .bp-stub-codes {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(6px, 1cqw, 9px);
+    font-size: clamp(16px, 2.5cqw, 22px);
+    color: var(--paper-ink);
+  }
+  .bp-stub-barcode {
+    margin-top: auto;
+    display: flex;
+    justify-content: center;
+    min-width: 0;
+  }
+  .bp-stub-barcode .barcode {
+    width: 100%;
+  }
+  .bp-stub-barcode .barcode svg {
+    width: 100%;
+    height: auto;
+  }
+  .bp-stub-edge {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateX(50%) rotate(90deg);
+    transform-origin: center;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--paper-slate);
+    white-space: nowrap;
+    opacity: 0.9;
+  }
+}
+
+/* Compact: the pass as one strip for journey chains (Phase 9 item 7). The airline strip is the
+   left segment, then the paper carries codes, the core fields in pass order and the status tag.
+   72px tall on desktop; on phones the fields wrap to a second line under the codes. */
+.bp-compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 1px 0 rgba(27, 34, 48, 0.08), 0 6px 16px -8px rgba(27, 34, 48, 0.3);
+  aspect-ratio: auto;
+  font-size: inherit;
+}
+.bp-compact-strip {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  height: auto;
+  padding: 0 14px;
+  min-width: 120px;
+  max-width: 160px;
+}
+.bp-compact .bp-airline {
+  font-size: 13px;
+  max-width: 100%;
+}
+.bp-compact .bp-strip-title {
+  font-size: 11px;
+}
+.bp-compact-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "codes fields tag";
+  align-items: center;
+  gap: 8px 16px;
+  padding: 8px 16px;
+  min-width: 0;
+}
+.bp-compact-codes {
+  grid-area: codes;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--paper-ink);
+  white-space: nowrap;
+}
+.bp-compact-fields {
+  grid-area: fields;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.bp-compact-fields .bp-field {
+  flex: none;
+}
+.bp-compact .bp-label {
+  font-size: 10px;
+}
+.bp-compact .bp-value {
+  font-size: 13px;
+}
+.bp-compact .bp-value .code {
+  font-size: 14px;
+}
+.bp-compact .bp-tag {
+  grid-area: tag;
+  justify-self: end;
+}
+/* Wide enough for one line: hold the strip at exactly 72px. */
+@media (min-width: 960px) {
+  .bp-compact {
+    height: 72px;
+  }
+  .bp-compact-fields {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+}
+/* Phones: codes and the tag on the first line, the fields wrap beneath. */
+@media (max-width: 719.98px) {
+  .bp-compact-body {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "codes tag"
+      "fields fields";
+    padding: 10px 14px;
+  }
+  .bp-compact-strip {
+    min-width: 96px;
+    padding: 0 12px;
+  }
+}
+@media (max-width: 480px) {
+  .bp-compact {
+    grid-template-columns: 1fr;
+  }
+  .bp-compact-strip {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    height: 36px;
+    max-width: none;
+  }
+  .bp-compact-fields {
+    gap: 6px 10px;
+  }
+  .bp-compact .bp-label {
+    font-size: 9.5px;
+  }
+  .bp-compact .bp-value {
+    font-size: 12px;
+  }
+  .bp-compact .bp-value .code {
+    font-size: 13px;
+  }
+}
+
+@media print {
+  .bp-wrap {
+    filter: none;
+    max-width: none;
+    width: 100%;
+  }
+  .bp,
+  .bp-strip,
+  .bp-tag,
+  .barcode svg {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .bp {
+    break-inside: avoid;
+  }
+  .bp-main,
+  .bp-stub {
+    border: 1px solid var(--paper-line);
+  }
+}

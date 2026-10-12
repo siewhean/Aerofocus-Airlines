@@ -1,0 +1,122 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s-3);
+}
+.field-label {
+  font-weight: 600;
+  font-size: var(--fs-1);
+}
+.field-hint {
+  color: var(--text-2);
+  font-size: var(--fs-0);
+}
+.field-error {
+  color: var(--danger);
+  font-size: var(--fs-0);
+}
+.has-error .control {
+  border-color: var(--danger);
+}
+
+.control {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.control:hover {
+  border-color: var(--text-3);
+}
+.control:focus-visible {
+  outline-offset: 0;
+  border-color: var(--focus-ring);
+}
+.control-textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+select.control {
+  appearance: none;
+  padding-right: var(--s-6);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+input[type="datetime-local"].control,
+input[type="time"].control,
+input[type="date"].control {
+  font-stretch: 92%;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.toggle-row:last-child {
+  border-bottom: 0;
+}
+.toggle-text label {
+  font-weight: 600;
+}
+.toggle {
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  padding: 2px;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.toggle[aria-checked="true"] {
+  background: var(--signal);
+  border-color: var(--signal);
+}
+.toggle-knob {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-raised);
+  transition: transform var(--t-fast) var(--ease);
+}
+.toggle[aria-checked="true"] .toggle-knob {
+  transform: translateX(18px);
+}
+.toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) 2fr 48px;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+}
+.slider-row output {
+  text-align: right;
+  color: var(--text-2);
+}
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--geo);
+}

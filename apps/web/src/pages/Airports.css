@@ -1,0 +1,19 @@
+.airports-search {
+  max-width: 420px;
+}
+.airports-board {
+  min-width: 760px;
+}
+.airports-tz {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.airports-action {
+  text-align: right;
+  white-space: nowrap;
+}
+@media (max-width: 400px) {
+  .airports-search {
+    max-width: none;
+  }
+}

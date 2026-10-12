@@ -1,0 +1,119 @@
+.boarding {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-4) var(--s-4) calc(var(--s-4) + env(safe-area-inset-bottom, 0px));
+  max-width: var(--content-max);
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* The jet-bridge wipe: an ivory veil over the cabin that fades once the sequence begins. */
+.boarding-veil {
+  position: fixed;
+  inset: 0;
+  background: var(--ivory);
+  opacity: 1;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 700ms var(--ease);
+}
+.is-aboard .boarding-veil {
+  opacity: 0;
+}
+.is-reduced .boarding-veil {
+  transition: none;
+}
+
+.boarding-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.boarding-ident {
+  display: flex;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+}
+
+.boarding-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-7) 0;
+}
+.boarding-sequence {
+  width: 100%;
+  max-width: 34ch;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  align-items: center;
+}
+.boarding-caption {
+  font-size: clamp(1.5rem, 4.5vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 500;
+  max-width: none;
+  text-wrap: balance;
+  animation: caption-in 700ms var(--ease) both;
+}
+.is-reduced .boarding-caption {
+  animation: none;
+}
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.boarding-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  align-items: flex-start;
+  max-width: 48ch;
+}
+.boarding-message h1 {
+  font-size: clamp(1.75rem, 5vw, 3rem);
+}
+.boarding-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.boarding-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.boarding-progress {
+  height: 2px;
+  background: var(--midnight-line);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.boarding-progress-fill {
+  height: 100%;
+  background: var(--sky);
+  transition: width 200ms linear;
+}
+.boarding-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}

@@ -46,6 +46,15 @@ export interface TravelMark {
   arrivalDate: string;
   designId: string;
   virtual: true;
+  /** True for an intermediate (layover) airport of an itinerary (FR-048, FR-049). */
+  isTransit: boolean;
+  /** How many times the user has now reached this country, transit and final arrivals together (FR-050). */
+  visitNumber: number;
+}
+
+/** visitNumber for a new mark: previous marks in the same country + 1 (FR-050). */
+export function nextVisitNumber(previousMarks: readonly Pick<TravelMark, "country">[], country: string): number {
+  return previousMarks.filter((m) => m.country === country).length + 1;
 }
 
 export function buildTravelMark(input: {
@@ -55,8 +64,11 @@ export function buildTravelMark(input: {
   userTimeZone: string;
   designs: readonly TravelMarkDesign[];
   isTransit?: boolean;
+  /** Defaults to 1; compute with nextVisitNumber. */
+  visitNumber?: number;
 }): TravelMark {
-  const design = selectMarkDesign(input.designs, input.destinationCountry, input.isTransit ?? false);
+  const isTransit = input.isTransit ?? false;
+  const design = selectMarkDesign(input.designs, input.destinationCountry, isTransit);
   return {
     country: input.destinationCountry,
     airport: input.snapshot.destination,
@@ -66,6 +78,8 @@ export function buildTravelMark(input: {
     arrivalDate: localDate(input.arrival, input.userTimeZone),
     designId: design.id,
     virtual: true,
+    isTransit,
+    visitNumber: input.visitNumber ?? 1,
   };
 }
 

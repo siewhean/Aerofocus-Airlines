@@ -1,0 +1,37 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-0);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.badge-neutral {
+  background: var(--bg-sunken);
+  color: var(--text-2);
+}
+.badge-signal {
+  background: color-mix(in srgb, var(--signal) 16%, transparent);
+  color: color-mix(in srgb, var(--signal) 50%, var(--text));
+}
+.badge-amber {
+  background: color-mix(in srgb, var(--amber) 20%, transparent);
+  color: color-mix(in srgb, var(--amber) 60%, var(--text));
+}
+.badge-premium {
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  color: var(--premium);
+}
+.badge-geo {
+  background: color-mix(in srgb, var(--sky) 25%, transparent);
+  /* Mixed towards the text colour so the small label clears 4.5:1 on the tinted background. */
+  color: color-mix(in srgb, var(--geo) 70%, var(--text));
+}
+.badge-danger {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}

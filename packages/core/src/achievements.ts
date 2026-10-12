@@ -1,4 +1,4 @@
-import type { FlightRecord, UserStats } from "./stats";
+import { recordFocusMs, type FlightRecord, type UserStats } from "./stats";
 import { DAY, HOUR } from "./time";
 
 export interface AchievementContext {
@@ -11,7 +11,7 @@ export interface AchievementDef {
   id: string;
   name: string;
   description: string;
-  category: "milestone" | "collection" | "route" | "consistency" | "community";
+  category: "milestone" | "collection" | "route" | "consistency" | "community" | "journey";
   /** Special achievements count towards Global Voyager (FR-065). */
   special: boolean;
   earned: (ctx: AchievementContext) => boolean;
@@ -66,11 +66,23 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { id: "thirty_day_streak", name: "Month of Focus", description: "Study on 30 consecutive days", category: "consistency", special: true,
     earned: ({ stats }) => stats.currentStreakDays >= 30 },
   { id: "marathon_week", name: "Marathon Week", description: "Earn 20 hours of credited focus within 7 days", category: "consistency", special: true,
-    earned: ({ records, now }) => records.filter((r) => r.arrival > now - 7 * DAY).reduce((s, r) => s + r.creditedFocusMs, 0) >= 20 * HOUR },
+    earned: ({ records, now }) => records.filter((r) => r.arrival > now - 7 * DAY).reduce((s, r) => s + recordFocusMs(r), 0) >= 20 * HOUR },
 
   // Community
   { id: "community_regular", name: "Community Regular", description: "Complete 5 Community Flights", category: "community", special: false,
     earned: ({ records }) => completed(records).filter((r) => r.mode === "community").length >= 5 },
+
+  // Journey: multi-leg itineraries (FR-045)
+  { id: "first_connection", name: "First Connection", description: "Complete an itinerary of 2 or more legs", category: "journey", special: false,
+    earned: ({ stats }) => stats.multiLegItinerariesCompleted >= 1 },
+  { id: "three_leg_journey", name: "Three-Leg Journey", description: "Complete an itinerary of 3 legs", category: "journey", special: false,
+    earned: ({ stats }) => stats.longestCompletedItineraryLegs >= 3 },
+  { id: "hub_hopper", name: "Hub Hopper", description: "Transit through 5 different airports", category: "journey", special: true,
+    earned: ({ stats }) => stats.transitAirports >= 5 },
+  { id: "smooth_operator", name: "Smooth Operator", description: "Complete 5 multi-leg itineraries", category: "journey", special: true,
+    earned: ({ stats }) => stats.multiLegItinerariesCompleted >= 5 },
+  { id: "lounge_regular", name: "Lounge Regular", description: "Complete 5 layovers with premium lounge access", category: "journey", special: false,
+    earned: ({ stats }) => stats.premiumLoungeLayovers >= 5 },
 ];
 
 export function earnedAchievements(stats: UserStats, records: readonly FlightRecord[], now: number = Date.now()): AchievementDef[] {

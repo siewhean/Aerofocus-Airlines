@@ -1,0 +1,78 @@
+/* Airport departures board: a signage-green header strip, rows kept as plain rules. */
+.depboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.depboard .board-scroll {
+  margin-inline: 0;
+  padding-inline: 0;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+}
+.depboard .board {
+  min-width: 520px;
+}
+.depboard .board thead th {
+  background: var(--board, #1d6b4a);
+  color: var(--ivory);
+  border-bottom: 0;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: var(--s-2) var(--s-3);
+}
+.depboard .board thead th:first-child {
+  border-top-left-radius: calc(var(--r-2) - 1px);
+}
+.depboard .board thead th:last-child {
+  border-top-right-radius: calc(var(--r-2) - 1px);
+}
+.depboard .board tbody tr:last-child td {
+  border-bottom: 0;
+}
+.depboard .board tbody tr:hover {
+  background: var(--bg-sunken);
+}
+.depboard-time {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.depboard-dest {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.depboard-dest-code {
+  color: var(--text-2);
+}
+.depboard .board .depboard-dest-code {
+  font-size: var(--fs-1);
+}
+.depboard-remark {
+  color: var(--text-2);
+}
+
+/* The passenger's own connection: a left rule in signal green and a lifted row. */
+.depboard .board tr.is-yours td {
+  background: color-mix(in srgb, var(--signal) 8%, var(--bg-raised));
+  font-weight: 500;
+}
+.depboard .board tr.is-yours td:first-child {
+  box-shadow: inset 3px 0 0 var(--signal);
+}
+
+.depboard-caption {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 400px) {
+  .depboard .board th,
+  .depboard .board td {
+    padding: var(--s-2);
+  }
+}

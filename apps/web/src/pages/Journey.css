@@ -1,0 +1,64 @@
+.journey-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.journey-codes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-4);
+  color: var(--text-2);
+}
+.journey-plane {
+  color: var(--geo);
+}
+.journey-now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  background: var(--bg-raised);
+}
+.journey-now p {
+  margin: 0;
+  max-width: none;
+}
+/* Leg rows: the compact pass strip (Phase 9 item 7). The strip and the chain's layover block that
+   follows it share one width so their left and right edges line up. */
+.journey-leg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 760px;
+}
+.jchain-custom:has(.journey-leg) + .jchain-layover {
+  max-width: 760px;
+  margin-top: var(--s-2);
+}
+.journey-leg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 0 2px;
+}
+.journey-leg-status {
+  font-weight: 600;
+  font-size: var(--fs-0);
+}
+.journey-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+@media (max-width: 400px) {
+  .journey-now .btn {
+    flex: 1 1 100%;
+  }
+}

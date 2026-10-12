@@ -1,0 +1,139 @@
+/* Compact chain: SIN ✈ DOH ✈ LHR on one line, layover duration under each hub. */
+.jchain-compact {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+.jchain-compact-leg {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+.jchain-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+.jchain-node .code {
+  font-size: var(--fs-2);
+}
+.jchain-node-layover {
+  line-height: 1.2;
+}
+.jchain-plane {
+  color: var(--geo);
+  flex: none;
+  margin-top: 3px;
+}
+
+/* Vertical chain */
+.jchain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 3px solid var(--line);
+}
+.jchain-item {
+  position: relative;
+  padding: var(--s-3) 0 var(--s-3) var(--s-4);
+  border-left: 3px solid transparent;
+  margin-left: -3px;
+}
+.jchain-item.is-current {
+  border-left-color: var(--geo);
+}
+.jchain-item + .jchain-item {
+  border-top: 1px solid var(--line);
+}
+.jchain-leg {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: var(--s-2) var(--s-3);
+  align-items: start;
+}
+.jchain-leg.is-locked .code,
+.jchain-leg.is-locked .numeral {
+  color: var(--text-2);
+}
+.jchain-clock {
+  grid-row: 1 / span 3;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.jchain-clock .numeral {
+  font-size: var(--fs-2);
+}
+.jchain-route {
+  grid-column: 2;
+  min-width: 0;
+}
+.jchain-meta {
+  grid-column: 3;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  white-space: nowrap;
+}
+.jchain-flight {
+  grid-column: 2 / span 2;
+  min-width: 0;
+}
+.jchain-status {
+  grid-column: 2 / span 2;
+}
+.jchain-custom {
+  min-width: 0;
+}
+
+/* Layover block indented under the hub */
+.jchain-layover {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.jchain-layover-icon {
+  color: var(--geo);
+  flex: none;
+}
+.jchain-layover-text .numeral {
+  font-weight: 600;
+}
+
+/* Offers board */
+.jchain-when {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jchain-cabins {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s-1);
+  font-size: var(--fs-0);
+}
+.jchain-cabin-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--text-2);
+}
+
+@media (max-width: 400px) {
+  .jchain-item {
+    padding-left: var(--s-3);
+  }
+}

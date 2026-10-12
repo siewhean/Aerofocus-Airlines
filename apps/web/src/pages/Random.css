@@ -1,0 +1,70 @@
+.random-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 560px;
+}
+.random-minutes.control {
+  font-size: var(--fs-6);
+  font-weight: 600;
+  font-stretch: 90%;
+  min-height: 80px;
+  padding-inline: var(--s-4);
+  letter-spacing: -0.02em;
+}
+.random-picks {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.random-picks .btn[aria-pressed="true"] {
+  border-color: var(--text);
+  background: var(--bg-raised);
+}
+.random-draw {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.random-result {
+  border-top: 1px solid var(--text-3);
+  border-bottom: 1px solid var(--line);
+  padding: var(--s-5) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.random-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.random-flight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.random-flight .code {
+  font-size: var(--fs-3);
+}
+.random-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.random-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+@media (max-width: 600px) {
+  .random-actions .btn,
+  .random-draw .btn {
+    flex: 1 1 100%;
+  }
+}

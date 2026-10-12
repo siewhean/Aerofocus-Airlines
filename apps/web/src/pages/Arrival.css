@@ -1,0 +1,195 @@
+.arrival {
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-4) calc(var(--s-7) + env(safe-area-inset-bottom, 0px));
+}
+.arrival-loading {
+  justify-content: center;
+}
+.arrival-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.arrival-header h1 {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+}
+.arrival-title {
+  font-size: clamp(2.25rem, 8vw, 4.5rem);
+}
+/* Journey legs (Phase 7). */
+.arrival-journey {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin: 0;
+  color: var(--text-2);
+}
+.arrival-journey span + span::before {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 0.9em;
+  background: var(--line);
+  margin-right: var(--s-3);
+  vertical-align: middle;
+}
+.arrival-stamp-caption {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.arrival .notice .btn {
+  margin-left: auto;
+}
+.arrival-deadline {
+  color: var(--amber);
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+
+.arrival-unattended,
+.arrival-goal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+.arrival-unattended h2,
+.arrival-goal h2 {
+  font-size: var(--fs-3);
+}
+.arrival-spans {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.arrival-spans li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+.arrival-spans li:last-child {
+  border-bottom: 0;
+}
+.arrival-spans input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  accent-color: var(--signal);
+  flex: none;
+}
+.arrival-spans label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.arrival-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.arrival-links {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+/* The arrival stamp on a passport page excerpt (Phase 9 item 8). The paper and its print match the
+   passport book's pages; the panel keeps its colours in dark mode and sits on a soft shadow. */
+.arrival-page {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+}
+.arrival-page-paper {
+  --paper: #f4f1e8;
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 4 / 3;
+  border-radius: 4px 10px 10px 4px;
+  background-color: var(--paper);
+  background-image: repeating-radial-gradient(circle at 50% 50%, rgba(27, 34, 48, 0.03) 0 1px, transparent 1px 7px);
+  box-shadow: var(--shadow-pass, 0 1px 0 rgba(0, 0, 0, 0.3), 0 16px 40px -16px rgba(0, 0, 0, 0.6));
+  overflow: hidden;
+}
+/* Gutter shadow along the inner edge, as on the book's right-hand page. */
+.arrival-page-paper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(27, 34, 48, 0.11), rgba(27, 34, 48, 0.03) 5%, transparent 12%);
+}
+.arrival-page-paper .stamp-svg {
+  mix-blend-mode: multiply;
+  height: auto;
+}
+.arrival-page-prior,
+.arrival-page-new {
+  position: absolute;
+}
+.arrival-page-prior {
+  opacity: 0.35;
+}
+.arrival-page-prior .stamp-svg {
+  width: 100%;
+}
+.arrival-page-prior-1 {
+  width: 40%;
+  left: 7%;
+  top: 6%;
+}
+.arrival-page-prior-2 {
+  width: 38%;
+  right: 5%;
+  bottom: 7%;
+}
+.arrival-page-new {
+  width: 54%;
+  left: 29%;
+  top: 27%;
+  z-index: 1;
+  animation: arrival-press 320ms var(--ease) both;
+}
+.arrival-page-new .stamp-svg {
+  width: 100%;
+}
+.arrival-page.is-reduced .arrival-page-new {
+  animation: none;
+}
+@keyframes arrival-press {
+  from {
+    transform: scale(1.08);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrival-page-new {
+    animation: none;
+  }
+}

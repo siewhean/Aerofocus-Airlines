@@ -1,0 +1,164 @@
+.book-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-7);
+  align-items: start;
+}
+@media (min-width: 960px) {
+  .book-grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  }
+}
+
+.book-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  min-width: 0;
+}
+.book-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.book-legend {
+  font-weight: 600;
+  font-size: var(--fs-2);
+  padding: 0;
+  margin-bottom: var(--s-2);
+}
+.book-times {
+  max-width: none;
+}
+.book-actions {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.book-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  min-width: 0;
+}
+
+/* Departure choice: radios dressed as rows. */
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--bg-raised);
+  overflow: hidden;
+}
+.choice {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.choice:last-child {
+  border-bottom: 0;
+}
+.choice.is-selected {
+  background: color-mix(in srgb, var(--sky) 18%, var(--bg-raised));
+}
+.choice input {
+  margin: 0.3em 0 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+.choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.choice-label {
+  font-weight: 600;
+}
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* Cabin buttons */
+.cabin-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.cabin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  cursor: pointer;
+  font-weight: 600;
+}
+.cabin:hover:not(:disabled) {
+  border-color: var(--text-3);
+}
+.cabin.is-selected {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.cabin:disabled {
+  cursor: not-allowed;
+  color: var(--text-2);
+}
+
+/* Break schedule fields (components/BreakScheduleFields.tsx) */
+.breaks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.breaks-presets {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.breaks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-4);
+}
+.breaks-grid .field:first-child {
+  grid-column: 1 / -1;
+}
+
+/* Route preview (components/RoutePreview.tsx) */
+.route-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.route-strip {
+  width: 100%;
+  height: 56px;
+  overflow: visible;
+}
+.route-strip-code {
+  font-size: var(--fs-1);
+}
+.route-facts {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.route-table {
+  min-width: 0;
+}

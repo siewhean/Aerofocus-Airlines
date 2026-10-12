@@ -1,0 +1,274 @@
+/* The data page spread. Paper is the object's own colour (the same as the stamp pages); the cover
+   colour shows only as a soft tint along the page edge. The security print is two faint repeats,
+   radial and diagonal. Nothing here uses theme tokens except spacing and the house font. */
+.ppg {
+  --paper: #f4f1e8;
+  --paper-ink: #1b2230;
+  --paper-slate: #596170;
+  --paper-line: #d9d4c7;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  border-radius: 4px 10px 10px 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow-pass);
+  color: var(--paper-ink);
+  animation: ppg-open var(--t-med) var(--ease);
+}
+.ppg-page {
+  position: relative;
+  background-color: var(--paper);
+  background-image:
+    repeating-radial-gradient(circle at 50% 50%, rgba(27, 34, 48, 0.03) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-35deg, rgba(27, 34, 48, 0.022) 0 1px, transparent 1px 9px);
+  box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--ppg-cover) 24%, transparent);
+  min-height: 340px;
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-4);
+  overflow: hidden;
+}
+.ppg-page::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ppg-page-left::after {
+  background: linear-gradient(to left, rgba(27, 34, 48, 0.11), rgba(27, 34, 48, 0.03) 5%, transparent 12%);
+}
+.ppg-page-right::after {
+  background: linear-gradient(to right, rgba(27, 34, 48, 0.11), rgba(27, 34, 48, 0.03) 5%, transparent 12%);
+}
+
+/* Left page: the emblem, centred. */
+.ppg-emblem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  text-align: center;
+}
+.ppg-ring {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1.5px solid var(--paper-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper-ink);
+  opacity: 0.85;
+}
+.ppg-issuer {
+  font-size: var(--fs-3);
+  text-wrap: balance;
+}
+.ppg-kind {
+  font-size: var(--fs-0);
+  letter-spacing: 0.04em;
+  color: var(--paper-slate);
+}
+.ppg-foot {
+  margin: 0;
+  max-width: none;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--paper-slate);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Right page: portrait beside the fields, the machine-readable zone along the bottom. */
+.ppg-data {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
+  position: relative;
+  z-index: 1;
+}
+.ppg-portrait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.ppg-portrait-svg {
+  width: 88px;
+  aspect-ratio: 1;
+  display: block;
+  background: #e9e5d8;
+  border: 1px solid var(--paper-line);
+  fill: #c3bdae;
+}
+.ppg-portrait-note {
+  font-size: 10px;
+  color: var(--paper-slate);
+  letter-spacing: 0.02em;
+}
+.ppg-fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--s-3) var(--s-3);
+  min-width: 0;
+}
+.ppg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ppg-field dt {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--paper-slate);
+  white-space: nowrap;
+}
+.ppg-field dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ppg-name {
+  letter-spacing: 0.03em;
+}
+.ppg-f-type,
+.ppg-f-code {
+  grid-column: span 1;
+}
+.ppg-f-no {
+  grid-column: span 4;
+}
+.ppg-f-wide {
+  grid-column: 1 / -1;
+}
+.ppg-f-half {
+  grid-column: span 3;
+}
+
+/* MRZ: 44 equal cells per line so the lines align without a monospace face. */
+.ppg-mrz-wrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--paper-line);
+  padding-top: var(--s-3);
+}
+.ppg-mrz {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  user-select: none;
+}
+.ppg-mrz-line {
+  display: grid;
+  grid-template-columns: repeat(44, minmax(0, 1fr));
+  font-size: clamp(7px, 2.55cqw, 11.5px);
+  line-height: 1.3;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: 0.02em;
+  color: var(--paper-ink);
+  opacity: 0.86;
+}
+.ppg-mrz-cell {
+  text-align: center;
+  min-width: 0;
+}
+.ppg-mrz-note {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--paper-slate);
+}
+
+@keyframes ppg-open {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ppg {
+    animation: none;
+  }
+}
+
+/* Phones: one column; the emblem page becomes a short band above the data page. */
+@media (max-width: 640px) {
+  .ppg {
+    grid-template-columns: 1fr;
+  }
+  .ppg-page-left {
+    min-height: 0;
+    padding: var(--s-4) var(--s-4) var(--s-3);
+    gap: var(--s-2);
+  }
+  .ppg-page-left::after,
+  .ppg-page-right::after {
+    background: linear-gradient(to right, rgba(27, 34, 48, 0.08), transparent 10%);
+  }
+  .ppg-emblem {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "ring issuer"
+      "ring kind";
+    align-items: center;
+    justify-items: start;
+    text-align: left;
+    gap: 2px var(--s-3);
+  }
+  .ppg-ring {
+    grid-area: ring;
+    width: 40px;
+    height: 40px;
+  }
+  .ppg-issuer {
+    grid-area: issuer;
+    font-size: var(--fs-2);
+    align-self: end;
+  }
+  .ppg-emblem .ppg-kind {
+    grid-area: kind;
+    align-self: start;
+  }
+  .ppg-foot {
+    text-align: left;
+  }
+  .ppg-page-right {
+    padding: var(--s-4) var(--s-4) var(--s-4);
+  }
+  .ppg-data {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+  .ppg-portrait-svg {
+    width: 72px;
+  }
+  .ppg-f-type,
+  .ppg-f-code {
+    grid-column: span 1;
+  }
+  .ppg-f-no {
+    grid-column: span 4;
+  }
+  .ppg-f-half {
+    grid-column: 1 / -1;
+  }
+}

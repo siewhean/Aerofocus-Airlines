@@ -1,0 +1,43 @@
+.route {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.route-codes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+.route-codes .code {
+  font-size: var(--fs-2);
+}
+.route-lg .route-codes .code {
+  font-size: var(--fs-5);
+}
+.route-plane {
+  color: var(--geo);
+  flex: none;
+}
+.route-cities {
+  display: inline-flex;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+
+.flight-ident {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.flight-ident .code {
+  font-size: var(--fs-2);
+}
+.flight-ident-airline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
